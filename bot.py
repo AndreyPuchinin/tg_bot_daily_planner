@@ -15,14 +15,12 @@ bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
 ADMIN_USER_ID = "1287372767"
 
-# Состояние ожидания файла
-user_awaiting_json_file = set()
-
-# === ГЛОБАЛЬНЫЕ БУФЕРЫ ===
-user_awaiting_task_text = {}   # user_id → ожидаем текст задачи
-user_awaiting_datetime = {}    # user_id → ожидаем дату (после текста)
+user_states = {}  # user_id -> dict
 
 TIMEZONE_OFFSET = 3
+
+# Глобальные буферы
+user_states = {}  # user_id -> {"mode": "task_text", "command": "/task", "original_message_id": 123}
 
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
@@ -42,11 +40,44 @@ def save_data(data):
     os.replace(temp_file, DATA_FILE)  # атомарная замена
     
 # Inline-кнопка отмены для /jsonin & /jsonout
-# (Проверить позже, можно ли слить с уже сущесвтующей cancel_task)
 def make_cancel_inline():
     return telebot.types.InlineKeyboardMarkup().add(
         telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_json")
     )
+
+def cancel_operation(call, mode_name: str, command_name: str):
+    user_id = str(call.from_user.id)
+    chat_id = call.message.chat.id
+    message_id = call.message.message_id
+
+    current = user_states.get(user_id)
+    if current and current["mode"] == mode_name:
+        # Пользователь всё ещё в этом режиме
+        del user_states[user_id]
+        bot.edit_message_text(
+            f"❌ Отмена ввода команды {command_name}.",
+            chat_id, message_id
+        )
+    else:
+        # Уже вышел из режима
+        bot.answer_callback_query(
+            call.id,
+            f"Режим ввода команды {command_name} уже отменён.",
+            show_alert=False
+        )
+
+def make_cancel_button(mode: str, command: str):
+    return telebot.types.InlineKeyboardMarkup().add(
+        telebot.types.InlineKeyboardButton(
+            "Cancel",
+            callback_data=f"cancel:{mode}:{command}"
+        )
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("cancel:"))
+def universal_cancel(call):
+    _, mode, command = call.data.split(":", 2)
+    cancel_operation(call, mode, command)
     
 # Команда /jsonout — выгрузка файла
 @bot.message_handler(commands=["jsonout"])
@@ -122,16 +153,6 @@ def handle_json_file(msg):
     except Exception as e:
         bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_inline())
 
-# Обработка отмены
-@bot.callback_query_handler(func=lambda call: call.data == "cancel_json")
-def cancel_json_upload(call):
-    user_id = str(call.from_user.id)
-    user_awaiting_json_file.discard(user_id)
-    bot.edit_message_text(
-        "❌ Загрузка отменена.",
-        call.message.chat.id,
-        call.message.message_id)
-
 def send_long_message(bot, chat_id, text):
     """Отправляет текст, разбивая на части по 4000 символов."""
     if not text.strip():
@@ -148,12 +169,6 @@ def generate_example_datetime():
         hour=now.hour, minute=now.minute
     )
     return example_dt.strftime("%Y-%m-%d %H:%M")
-
-# Inline-кнопка отмены
-def get_cancel_inline_markup():
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task"))
-    return markup
 
 # Команда /start
 @bot.message_handler(commands=["start"])
@@ -191,9 +206,7 @@ def task_handler(message):
         bot.send_message(
             message.chat.id,
             "Введите текст задачи (просто напишите его, без команды):",
-            reply_markup=telebot.types.InlineKeyboardMarkup().add(
-                telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task")
-            )
+            reply_markup==make_cancel_button("task_text", "/task")
         )
         user_awaiting_task_text[user_id] = True
     else:
@@ -205,9 +218,7 @@ def task_handler(message):
             f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
             f"Пример:\n{example}\n\n"
             f"Или нажми Cancel ниже.",
-            reply_markup=telebot.types.InlineKeyboardMarkup().add(
-                telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task")
-            )
+            reply_markup==make_cancel_button("task_text", "/task")
         )
         
 # Обработка текста задачи
@@ -230,9 +241,7 @@ def task_text_input(msg):
         f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
         f"Пример:\n{example}\n\n"
         f"Или нажми inline-кнопку Cancel ниже.",
-        reply_markup=telebot.types.InlineKeyboardMarkup().add(
-            telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task")
-        )
+        reply_markup=make_cancel_button("task", "/task")
     )
 
 # Обработка ввода даты (только если ожидаем)
@@ -252,7 +261,7 @@ def datetime_input_handler(message):
             f"Используй: ГГГГ-ММ-ДД ЧЧ:ММ\n"
             f"Пример:\n"
             f"{example}",
-            reply_markup=get_cancel_inline_markup()
+            reply_markup=make_cancel_button("task", "/task")
         )
         return
 
@@ -331,14 +340,6 @@ def reminder_daemon():
         except Exception as e:
             print(f"Reminder error: {e}")
         # time.sleep(600)  # 10 минут
-    
-# Inline-отмена
-@bot.callback_query_handler(func=lambda call: call.data == "cancel_task")
-def cancel_task(call):
-    user_id = str(call.from_user.id)
-    user_awaiting_task_text.pop(user_id, None)
-    user_awaiting_datetime.pop(user_id, None)
-    bot.edit_message_text("❌ Отменено.", call.message.chat.id, call.message.message_id)
 
 """@bot.message_handler(commands=["clear"])
 def clear_keyboard(message):
