@@ -21,6 +21,7 @@ TIMEZONE_OFFSET = 3
 
 # Глобальные буферы
 user_states = {}  # user_id -> {"mode": "task_text", "command": "/task", "original_message_id": 123}
+user_awaiting_json_file = set()
 
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
@@ -108,7 +109,7 @@ def jsonin_handler(message):
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
 
-    user_states.add(str(message.from_user.id))
+    user_awaiting_json_file.add(str(message.from_user.id))
     bot.send_message(
         message.chat.id,
         "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.",
@@ -116,7 +117,7 @@ def jsonin_handler(message):
     )
 
 # Обработка документа (файла)
-@bot.message_handler(content_types=["document"], func=lambda msg: str(msg.from_user.id) in user_states)
+@bot.message_handler(content_types=["document"], func=lambda msg: str(msg.from_user.id) in user_awaiting_json_file)
 def handle_json_file(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
@@ -143,7 +144,7 @@ def handle_json_file(msg):
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(json_content, f, ensure_ascii=False, indent=2)
 
-        user_states.discard(user_id)
+        user_awaiting_json_file.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
 
     except json.JSONDecodeError:
@@ -211,7 +212,7 @@ def task_handler(message):
         user_states[user_id] = {"mode": "task_text", "command": "/task"}
     else:
         # Если текст уже в команде — сразу переходим к дате
-        user_states[user_id] = text
+        user_awaiting_datetime[user_id] = text
         example = (now_msk() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
         bot.send_message(
             message.chat.id,
@@ -232,7 +233,7 @@ def task_text_input(msg):
         return
 
     # Сохраняем текст и переходим к ожиданию даты
-    user_states[user_id] = text
+    user_awaiting_datetime[user_id] = text
     del user_states[user_id]  # выходим из режима ввода текста
 
     example = (now_msk() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
@@ -245,7 +246,7 @@ def task_text_input(msg):
     )
 
 # Обработка ввода даты (только если ожидаем)
-@bot.message_handler(func=lambda message: str(message.from_user.id) in user_states)
+@bot.message_handler(func=lambda message: str(message.from_user.id) in user_awaiting_datetime)
 def datetime_input_handler(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
@@ -265,7 +266,7 @@ def datetime_input_handler(message):
         )
         return
 
-    text = user_states[user_id]
+    text = user_awaiting_datetime[user_id]
     data = load_data()
     if user_id not in data:
         bot.send_message(chat_id, "Сначала отправь /start")
@@ -281,7 +282,7 @@ def datetime_input_handler(message):
     data[user_id]["tasks"].append(new_task)
     save_data(data)
 
-    del user_states[user_id]
+    del user_awaiting_datetime[user_id]
     bot.send_message(
         chat_id,
         f"✅ Задача сохранена!\n"
