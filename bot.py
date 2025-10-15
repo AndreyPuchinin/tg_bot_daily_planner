@@ -209,7 +209,7 @@ def task_handler(message):
         bot.send_message(
             message.chat.id,
             "Введите текст задачи (просто напишите его, без команды):",
-            reply_markup=make_cancel_button("task_text", "/task")
+            reply_markup=make_cancel_inline("task_text", "/task")
         )
         user_states[user_id] = {"mode": "task_text", "command": "/task"}
     else:
@@ -221,7 +221,7 @@ def task_handler(message):
             f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
             f"Пример:\n{example}\n\n"
             f"Или нажми Cancel ниже.",
-            reply_markup=make_cancel_button("task_text", "/task")
+            reply_markup=make_cancel_inline("task_text", "/task")
         )
         
 # Обработка текста задачи
@@ -244,7 +244,7 @@ def task_text_input(msg):
         f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
         f"Пример:\n{example}\n\n"
         f"Или нажми inline-кнопку Cancel ниже.",
-        reply_markup=make_cancel_button("task", "/task")
+        reply_markup=make_cancel_inline("task", "/task")
     )
 
 # Обработка ввода даты (только если ожидаем)
@@ -264,7 +264,7 @@ def datetime_input_handler(message):
             f"Используй: ГГГГ-ММ-ДД ЧЧ:ММ\n"
             f"Пример:\n"
             f"{example}",
-            reply_markup=make_cancel_button("task", "/task")
+            reply_markup=make_cancel_inline("task", "/task")
         )
         return
 
