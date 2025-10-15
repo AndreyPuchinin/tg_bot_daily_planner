@@ -1,3 +1,4 @@
+from io import BytesIO
 from datetime import datetime, timedelta
 import threading
 import telebot
@@ -11,6 +12,11 @@ DATA_FILE = "data.json"
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+
+ADMIN_USER_ID = "1287372767"
+
+# Состояние ожидания файла
+user_awaiting_json_file = set()
 
 # === ГЛОБАЛЬНЫЕ БУФЕРЫ ===
 user_awaiting_task_text = {}   # user_id → ожидаем текст задачи
@@ -34,6 +40,97 @@ def save_data(data):
     with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(temp_file, DATA_FILE)  # атомарная замена
+    
+# Inline-кнопка отмены для /jsonin & /jsonout
+# (Проверить позже, можно ли слить с уже сущесвтующей cancel_task)
+def make_cancel_inline():
+    return telebot.types.InlineKeyboardMarkup().add(
+        telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_json")
+    )
+    
+# Команда /jsonout — выгрузка файла
+@bot.message_handler(commands=["jsonout"])
+def jsonout_handler(message):
+    if str(message.from_user.id) != ADMIN_USER_ID:
+        bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
+        return
+
+    if not os.path.exists(DATA_FILE):
+        bot.send_message(message.chat.id, "Файл данных не найден.")
+        return
+
+    try:
+        with open(DATA_FILE, "rb") as f:
+            bot.send_document(
+                message.chat.id,
+                document=BytesIO(f.read()),
+                visible_file_name="data.json",
+                caption="📁 Текущая база данных"
+            )
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Ошибка при отправке файла: {e}")
+
+# Команда /jsonin — загрузка файла
+@bot.message_handler(commands=["jsonin"])
+def jsonin_handler(message):
+    if str(message.from_user.id) != ADMIN_USER_ID:
+        bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
+        return
+
+    user_awaiting_json_file.add(str(message.from_user.id))
+    bot.send_message(
+        message.chat.id,
+        "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.",
+        reply_markup=make_cancel_inline()
+    )
+
+# Обработка документа (файла)
+@bot.message_handler(content_types=["document"], func=lambda msg: str(msg.from_user.id) in user_awaiting_json_file)
+def handle_json_file(msg):
+    user_id = str(msg.from_user.id)
+    chat_id = msg.chat.id
+
+    # Проверка: есть ли файл
+    if not msg.document:
+        bot.send_message(chat_id, "Пожалуйста, отправьте именно файл.", reply_markup=make_cancel_inline())
+        return
+
+    file_info = bot.get_file(msg.document.file_id)
+    file_name = msg.document.file_name or ""
+
+    # Проверка расширения
+    if not file_name.lower().endswith(".json"):
+        bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_inline())
+        return
+
+    try:
+        # Скачиваем файл
+        downloaded_file = bot.download_file(file_info.file_path)
+        # Проверяем, что это валидный JSON
+        json_content = json.loads(downloaded_file.decode("utf-8"))
+        # Если всё ок — сохраняем
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(json_content, f, ensure_ascii=False, indent=2)
+
+        user_awaiting_json_file.discard(user_id)
+        bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
+
+    except json.JSONDecodeError:
+        bot.send_message(chat_id, "Ошибка: файл не является валидным JSON.", reply_markup=make_cancel_inline())
+    except UnicodeDecodeError:
+        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_inline())
+    except Exception as e:
+        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_inline())
+
+# Обработка отмены
+@bot.callback_query_handler(func=lambda call: call.data == "cancel_json")
+def cancel_json_upload(call):
+    user_id = str(call.from_user.id)
+    user_awaiting_json_file.discard(user_id)
+    bot.edit_message_text(
+        "❌ Загрузка отменена.",
+        call.message.chat.id,
+        call.message.message_id)
 
 def send_long_message(bot, chat_id, text):
     """Отправляет текст, разбивая на части по 4000 символов."""
