@@ -1,0 +1,261 @@
+from datetime import datetime, timedelta
+import threading
+import telebot
+import json
+# import time
+import os
+
+# === НАСТРОЙКИ ===
+TELEGRAM_BOT_TOKEN = "8396602686:AAFfOqaDehOGf7Y3iom_j6VNxEGEmyOxIgU"
+DATA_FILE = "data.json"
+TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
+
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+
+# === ГЛОБАЛЬНЫЕ БУФЕРЫ ===
+user_awaiting_task_text = {}   # user_id → ожидаем текст задачи
+user_awaiting_datetime = {}    # user_id → ожидаем дату (после текста)
+
+TIMEZONE_OFFSET = 3
+
+def now_msk():
+    return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
+
+# Загрузка данных
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+# Сохранение данных
+def save_data(data):
+    temp_file = DATA_FILE + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(temp_file, DATA_FILE)  # атомарная замена
+
+def send_long_message(bot, chat_id, text):
+    """Отправляет текст, разбивая на части по 4000 символов."""
+    if not text.strip():
+        return
+    max_len = 4000
+    for i in range(0, len(text), max_len):
+        bot.send_message(chat_id, text[i:i + max_len])
+
+# Генерация примера: завтра + текущее время (МСК)
+def generate_example_datetime():
+    now = now_msk()
+    tomorrow = now.date() + timedelta(days=1)
+    example_dt = datetime.combine(tomorrow, datetime.min.time()).replace(
+        hour=now.hour, minute=now.minute
+    )
+    return example_dt.strftime("%Y-%m-%d %H:%M")
+
+# Inline-кнопка отмены
+def get_cancel_inline_markup():
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task"))
+    return markup
+
+# Команда /start
+@bot.message_handler(commands=["start"])
+def start_handler(message):
+    user_id = str(message.from_user.id)
+    user_name = message.from_user.first_name or "Пользователь"
+    data = load_data()
+
+    if user_id not in data:
+        data[user_id] = {
+                            "user_name": user_name,
+                            "chat_id": str(message.chat.id),  # ← добавили
+                            "tasks": []
+                        }
+        save_data(data)
+        bot.send_message(
+            message.chat.id,
+            f"Привет, {user_name}! 👋\n"
+            "Я — твой личный ежедневник в Telegram.\n"
+            "Используй команды:\n"
+            "/task — добавить задачу\n"
+            "/today — посмотреть задачи на сегодня\n"
+            "/done — отметить выполнение"
+        )
+    else:
+        bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
+
+# Команда /task
+@bot.message_handler(commands=["task"])
+def task_handler(message):
+    user_id = str(message.from_user.id)
+    text = message.text[6:].strip()
+
+    if not text:
+        bot.send_message(
+            message.chat.id,
+            "Введите текст задачи (просто напишите его, без команды):",
+            reply_markup=telebot.types.InlineKeyboardMarkup().add(
+                telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task")
+            )
+        )
+        user_awaiting_task_text[user_id] = True
+    else:
+        # Если текст уже в команде — сразу переходим к дате
+        user_awaiting_datetime[user_id] = text
+        example = (now_msk() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
+        bot.send_message(
+            message.chat.id,
+            f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
+            f"Пример:\n{example}\n\n"
+            f"Или нажми Cancel ниже.",
+            reply_markup=telebot.types.InlineKeyboardMarkup().add(
+                telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task")
+            )
+        )
+        
+# Обработка текста задачи
+@bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_task_text)
+def task_text_input(msg):
+    user_id = str(msg.from_user.id)
+    text = msg.text.strip()
+
+    if not text:
+        bot.send_message(msg.chat.id, "Текст не может быть пустым. Попробуй снова.")
+        return
+
+    # Сохраняем текст и переходим к ожиданию даты
+    user_awaiting_datetime[user_id] = text
+    del user_awaiting_task_text[user_id]  # выходим из режима ввода текста
+
+    example = (now_msk() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
+    bot.send_message(
+        msg.chat.id,
+        f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
+        f"Пример:\n{example}\n\n"
+        f"Или нажми inline-кнопку Cancel ниже.",
+        reply_markup=telebot.types.InlineKeyboardMarkup().add(
+            telebot.types.InlineKeyboardButton("Cancel", callback_data="cancel_task")
+        )
+    )
+
+# Обработка ввода даты (только если ожидаем)
+@bot.message_handler(func=lambda message: str(message.from_user.id) in user_awaiting_datetime)
+def datetime_input_handler(message):
+    user_id = str(message.from_user.id)
+    chat_id = message.chat.id
+    datetime_str = message.text.strip()
+
+    try:
+        task_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+    except ValueError:
+        example = generate_example_datetime()
+        bot.send_message(
+            chat_id,
+            f"Неверный формат даты.\n"
+            f"Используй: ГГГГ-ММ-ДД ЧЧ:ММ\n"
+            f"Пример:\n"
+            f"{example}",
+            reply_markup=get_cancel_inline_markup()
+        )
+        return
+
+    text = user_awaiting_datetime[user_id]
+    data = load_data()
+    if user_id not in data:
+        bot.send_message(chat_id, "Сначала отправь /start")
+        return
+
+    new_task = {
+        "text": text,
+        "datetime": task_datetime.isoformat(),
+        "status": "waiting",
+        "reminded": False, 
+        "created_at": now_msk().isoformat()
+    }
+    data[user_id]["tasks"].append(new_task)
+    save_data(data)
+
+    del user_awaiting_datetime[user_id]
+    bot.send_message(
+        chat_id,
+        f"✅ Задача сохранена!\n"
+        f"{text}\n"
+        f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}"
+    )
+    
+def check_and_send_reminders(bot, user_id, chat_id, data):
+    # print("started")
+    """Проверяет задачи и отправляет напоминания, если нужно."""
+    now = now_msk()
+    tasks_to_remind = []
+
+    for task in data[user_id]["tasks"]:
+        
+        if task.get("status") != "waiting" or task.get("reminded", True):
+            # print("skipped")
+            continue
+
+        try:
+            task_time = datetime.fromisoformat(task["datetime"])
+            # print((task_time - now))
+        except:
+            continue
+
+        # Условие 1: задача завтра → напоминание в 13:00
+        if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 13:
+            tasks_to_remind.append(task)
+
+        # Условие 2: осталось ≤12 часов → напомнить сразу
+        elif (task_time - now).total_seconds() <= 12 * 3600:
+            tasks_to_remind.append(task)
+
+    if not tasks_to_remind:
+        return
+
+    # Формируем текст
+    lines = []
+    for task in tasks_to_remind:
+        dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
+        lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
+        task["reminded"] = True  # помечаем как напомненную
+
+    save_data(data)  # сохраняем изменения
+    send_long_message(bot, chat_id, "\n\n".join(lines))
+    
+# Проверка задач на напоминание (каждые 10 минут)
+# Работает с ограничениями. Перейти на какой-то VPS или Render
+def reminder_daemon():
+    while True:
+        try:
+            data = load_data()
+            for user_id, user_data in data.items():
+                # if "chat_id" in user_data:  # ← нужно сохранять chat_id!
+                check_and_send_reminders(bot, user_id, user_id, data)
+        except Exception as e:
+            print(f"Reminder error: {e}")
+        # time.sleep(600)  # 10 минут
+    
+# Inline-отмена
+@bot.callback_query_handler(func=lambda call: call.data == "cancel_task")
+def cancel_task(call):
+    user_id = str(call.from_user.id)
+    user_awaiting_task_text.pop(user_id, None)
+    user_awaiting_datetime.pop(user_id, None)
+    bot.edit_message_text("❌ Отменено.", call.message.chat.id, call.message.message_id)
+
+"""@bot.message_handler(commands=["clear"])
+def clear_keyboard(message):
+    bot.send_message(
+        message.chat.id,
+        "Клавиатура сброшена. Теперь при нажатии на 🎛️ будет меню команд.",
+        reply_markup=telebot.types.ReplyKeyboardRemove()
+    )"""
+
+# Запуск
+if __name__ == "__main__":
+    # Запускаем напоминания в фоновом потоке
+    reminder_thread = threading.Thread(target=reminder_daemon, daemon=True)
+    reminder_thread.start()
+
+    # Запускаем бота в основном потоке
+    bot.polling()
