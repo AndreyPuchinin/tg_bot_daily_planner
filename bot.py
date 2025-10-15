@@ -206,7 +206,7 @@ def task_handler(message):
         bot.send_message(
             message.chat.id,
             "Введите текст задачи (просто напишите его, без команды):",
-            reply_markup==make_cancel_button("task_text", "/task")
+            reply_markup=make_cancel_button("task_text", "/task")
         )
         user_awaiting_task_text[user_id] = True
     else:
@@ -218,7 +218,7 @@ def task_handler(message):
             f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
             f"Пример:\n{example}\n\n"
             f"Или нажми Cancel ниже.",
-            reply_markup==make_cancel_button("task_text", "/task")
+            reply_markup=make_cancel_button("task_text", "/task")
         )
         
 # Обработка текста задачи
