@@ -1,4 +1,5 @@
 from io import BytesIO
+from telebot.apihelper import ApiTelegramException
 from datetime import datetime, timedelta
 import threading
 import telebot
@@ -24,7 +25,7 @@ user_states = {}  # user_id -> {"mode": "task_text", "command": "/task", "origin
 user_awaiting_json_file = set()
 
 def now_msk():
-    return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
+    return datetime.now(timezone.utc) + timedelta(hours=TIMEZONE_OFFSET)
 
 # Загрузка данных
 def load_data():
@@ -53,27 +54,28 @@ def cancel_operation(call, mode_name: str, command_name: str):
 
     current = user_states.get(user_id)
     if current and current["mode"] == mode_name:
-        # Пользователь всё ещё в этом режиме
         del user_states[user_id]
-        bot.edit_message_text(
-            f"❌ Отмена ввода команды {command_name}.",
-            chat_id, message_id
-        )
+        try:
+            bot.edit_message_text(
+                f"❌ Отмена ввода команды {command_name}.",
+                chat_id, message_id
+            )
+        except Exception:
+            pass  # Игнорируем ошибки редактирования (сообщение удалено и т.д.)
     else:
-        # Уже вышел из режима
-        bot.answer_callback_query(
-            call.id,
-            f"Режим ввода команды {command_name} уже отменён.",
-            show_alert=False
-        )
-
-def make_cancel_button(mode: str, command: str):
-    return telebot.types.InlineKeyboardMarkup().add(
-        telebot.types.InlineKeyboardButton(
-            "Cancel",
-            callback_data=f"cancel:{mode}:{command}"
-        )
-    )
+        # Уже вышел из режима → показываем уведомление, но ловим ошибку
+        try:
+            bot.answer_callback_query(
+                call.id,
+                f"Режим ввода команды {command_name} уже отменён.",
+                show_alert=False
+            )
+        except telebot.apihelper.ApiTelegramException as e:
+            if "query is too old" in str(e):
+                # Игнорируем устаревшие запросы — это нормально
+                pass
+            else:
+                raise  # Другие ошибки — оставляем
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cancel:"))
 def universal_cancel(call):
