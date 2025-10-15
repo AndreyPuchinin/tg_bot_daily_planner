@@ -208,10 +208,10 @@ def task_handler(message):
             "Введите текст задачи (просто напишите его, без команды):",
             reply_markup=make_cancel_button("task_text", "/task")
         )
-        user_awaiting_task_text[user_id] = True
+        user_states[user_id] = {"mode": "task_text", "command": "/task"}
     else:
         # Если текст уже в команде — сразу переходим к дате
-        user_awaiting_datetime[user_id] = text
+        user_states[user_id] = text
         example = (now_msk() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
         bot.send_message(
             message.chat.id,
@@ -222,7 +222,7 @@ def task_handler(message):
         )
         
 # Обработка текста задачи
-@bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_task_text)
+@bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_states)
 def task_text_input(msg):
     user_id = str(msg.from_user.id)
     text = msg.text.strip()
@@ -232,8 +232,8 @@ def task_text_input(msg):
         return
 
     # Сохраняем текст и переходим к ожиданию даты
-    user_awaiting_datetime[user_id] = text
-    del user_awaiting_task_text[user_id]  # выходим из режима ввода текста
+    user_states[user_id] = text
+    del user_states[user_id]  # выходим из режима ввода текста
 
     example = (now_msk() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
     bot.send_message(
@@ -245,7 +245,7 @@ def task_text_input(msg):
     )
 
 # Обработка ввода даты (только если ожидаем)
-@bot.message_handler(func=lambda message: str(message.from_user.id) in user_awaiting_datetime)
+@bot.message_handler(func=lambda message: str(message.from_user.id) in user_states)
 def datetime_input_handler(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
@@ -265,7 +265,7 @@ def datetime_input_handler(message):
         )
         return
 
-    text = user_awaiting_datetime[user_id]
+    text = user_states[user_id]
     data = load_data()
     if user_id not in data:
         bot.send_message(chat_id, "Сначала отправь /start")
@@ -281,7 +281,7 @@ def datetime_input_handler(message):
     data[user_id]["tasks"].append(new_task)
     save_data(data)
 
-    del user_awaiting_datetime[user_id]
+    del user_states[user_id]
     bot.send_message(
         chat_id,
         f"✅ Задача сохранена!\n"
