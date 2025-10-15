@@ -108,7 +108,7 @@ def jsonin_handler(message):
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
 
-    user_awaiting_json_file.add(str(message.from_user.id))
+    user_states.add(str(message.from_user.id))
     bot.send_message(
         message.chat.id,
         "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.",
@@ -116,7 +116,7 @@ def jsonin_handler(message):
     )
 
 # Обработка документа (файла)
-@bot.message_handler(content_types=["document"], func=lambda msg: str(msg.from_user.id) in user_awaiting_json_file)
+@bot.message_handler(content_types=["document"], func=lambda msg: str(msg.from_user.id) in user_states)
 def handle_json_file(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
@@ -143,7 +143,7 @@ def handle_json_file(msg):
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(json_content, f, ensure_ascii=False, indent=2)
 
-        user_awaiting_json_file.discard(user_id)
+        user_states.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
 
     except json.JSONDecodeError:
