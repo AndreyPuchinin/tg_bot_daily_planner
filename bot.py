@@ -113,13 +113,13 @@ def handle_json_file(msg):
         user_awaiting_json_file.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
     except json.JSONDecodeError as e:
-    error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
-    bot.send_message(
-        chat_id,
-        f"❌ Некорректный JSON-файл.\nПодробности:\n```\n{error_details}\n```",
-        parse_mode="Markdown",
-        reply_markup=make_cancel_inline()
-    )
+        error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
+        bot.send_message(
+            chat_id,
+            f"❌ Некорректный JSON-файл.\nПодробности:\n```\n{error_details}\n```",
+            parse_mode="Markdown",
+            reply_markup=make_cancel_inline()
+        )
     except UnicodeDecodeError:
         bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
     except Exception as e:
