@@ -6,6 +6,7 @@ import logging
 import telebot
 import requests
 import json
+import time
 import os
 
 # === НАСТРОЙКИ ===
