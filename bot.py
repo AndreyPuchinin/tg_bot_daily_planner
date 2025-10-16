@@ -1,16 +1,21 @@
 from io import BytesIO
 from datetime import datetime, timedelta
+from flask import Flask, request # НАСТРОЙКА WEBHOOK ДЛЯ RENDER
 import threading
 import telebot
 import json
 import os
 
 # === НАСТРОЙКИ ===
+WEBHOOK_URL = "https://tg-bot-daily-planner.onrender.com"
 TELEGRAM_BOT_TOKEN = "8396602686:AAFfOqaDehOGf7Y3iom_j6VNxEGEmyOxIgU"
 DATA_FILE = "data.json"
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 ADMIN_USER_ID = "1287372767" #в настройки: добавлять и удалять админов. Возможности админов и администрирования
+
+# WEB-HOOK
+app = Flask(__name__)
 
 # Состояния
 user_awaiting_json_file = set()
@@ -302,8 +307,6 @@ def reminder_daemon():
             print(f"Reminder error: {e}")
         # time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
 
-WEBHOOK_URL = "https://your-bot.onrender.com"  # ← замени на свой URL
-
 @app.route('/' + TELEGRAM_BOT_TOKEN, methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -319,9 +322,14 @@ def index():
     return 'Bot is running.'
 
 if __name__ == '__main__':
+    # Запускаем напоминания в фоновом потоке
     reminder_thread = threading.Thread(target=reminder_daemon, daemon=True)
     reminder_thread.start()
+
+    # Устанавливаем webhook
     bot.remove_webhook()
     bot.set_webhook(url=WEBHOOK_URL + '/' + TELEGRAM_BOT_TOKEN)
-    # app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
-    # bot.polling()
+
+    # Запускаем Flask-сервер
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host="0.0.0.0", port=port)
