@@ -149,16 +149,18 @@ def handle_json_file(msg):
     if not file_name.lower().endswith(".json"):
         bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_button("cancel_jsonin"))
         return
-    if is_data_empty(data):
-        bot.send_message(
-            message.chat.id,
-            "⚠️ База данных существует, но пока пуста.",
-            reply_markup=make_cancel_button("cancel_jsonin")
-        )
-        return
     try:
         downloaded_file = bot.download_file(file_info.file_path)
         json_content = json.loads(downloaded_file.decode("utf-8"))
+        # Проверка: не пустой ли файл по смыслу?
+        if is_data_empty(json_content):
+            bot.send_message(
+                chat_id,
+                "⚠️ Загруженный файл — валидный JSON, но не содержит ни одной задачи.\n"
+                "Файл не был применён.",
+                reply_markup=make_cancel_button("cancel_jsonin")
+            )
+            return
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(json_content, f, ensure_ascii=False, indent=2)
         user_awaiting_json_file.discard(user_id)
