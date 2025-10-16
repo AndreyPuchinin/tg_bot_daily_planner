@@ -63,14 +63,22 @@ def jsonout_handler(message):
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
     if str(message.from_user.id) != ADMIN_USER_ID:
-        bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
+        try:
+            bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
+        except Exception as e:
+            print(f"Не удалось отправить сообщение: {e}")
         return
+
     user_awaiting_json_file.add(str(message.from_user.id))
-    bot.send_message(
-        message.chat.id,
-        "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.",
-        reply_markup=make_cancel_button("cancel_json")
-    )
+    try:
+        bot.send_message(
+            message.chat.id,
+            "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.",
+            reply_markup=make_cancel_button("cancel_json")
+        )
+    except Exception as e:
+        print(f"Ошибка при отправке сообщения в /jsonin: {e}")
+        # Можно отправить fallback через повторную попытку или просто логировать
 
 @bot.message_handler(content_types=["document"], func=lambda msg: str(msg.from_user.id) in user_awaiting_json_file)
 def handle_json_file(msg):
@@ -142,9 +150,8 @@ def start_handler(message):
             f"Привет, {user_name}! 👋\n"
             "Я — твой личный ежедневник в Telegram.\n"
             "Используй команды:\n"
+            "/start - запустить бота\n"
             "/task — добавить задачу\n"
-            "/today — посмотреть задачи на сегодня\n"
-            "/done — отметить выполнение"
         )
     else:
         bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
