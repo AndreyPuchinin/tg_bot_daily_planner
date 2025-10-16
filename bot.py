@@ -18,7 +18,7 @@ user_awaiting_task_text = {}
 user_awaiting_datetime = {}
 
 # Список всех допустимых callback_data для отмены
-CANCEL_ACTIONS = {}
+CANCEL_ACTIONS = set()
 
 # Функция регистрации новой кнопки
 def register_cancel_action(name: str) -> str:
