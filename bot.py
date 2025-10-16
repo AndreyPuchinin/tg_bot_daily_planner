@@ -4,16 +4,20 @@ from flask import Flask, request # НАСТРОЙКА WEBHOOK ДЛЯ RENDER
 import threading
 import logging
 import telebot
+import requests
 import json
 import os
 
 # === НАСТРОЙКИ ===
 WEBHOOK_URL = "https://tg-bot-daily-planner.onrender.com"
 TELEGRAM_BOT_TOKEN = "8396602686:AAFfOqaDehOGf7Y3iom_j6VNxEGEmyOxIgU"
-DATA_FILE = "data.json"
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 ADMIN_USER_ID = "1287372767" #в настройки: добавлять и удалять админов. Возможности админов и администрирования
+
+# Работа с гистом с гитхаба (переносим БД туда)
+GIST_ID = os.getenv("GIST_ID")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 # WEB-HOOK
 app = Flask(__name__)
@@ -47,6 +51,52 @@ def make_cancel_button(callback_data: str = "cancel_task") -> telebot.types.Inli
 
 # === РАБОТА С ФАЙЛАМИ ===
 def load_data():
+    """Загружает данные из приватного Gist."""
+    if not GIST_ID or not GITHUB_TOKEN:
+        logger.error("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
+        return {}
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            gist_data = resp.json()
+            for filename, file_info in gist_data["files"].items():
+                if filename == "data.json":
+                    content = file_info["content"]
+                    if not content.strip():
+                        return {}
+                    return json.loads(content)
+        logger.error(f"Не удалось загрузить данные из Gist: {resp.status_code} {resp.text}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Ошибка разбора JSON из Gist: {e}")
+        return {}
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке данных из Gist: {e}")
+    return {}
+
+def save_data(data):
+    """Сохраняет данные в приватный Gist."""
+    if not GIST_ID or not GITHUB_TOKEN:
+        logger.error("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
+        return
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    payload = {
+        "files": {
+            "data.json": {
+                "content": json.dumps(data, ensure_ascii=False, indent=2)
+            }
+        }
+    }
+    try:
+        resp = requests.patch(url, json=payload, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            logger.error(f"Не удалось сохранить данные в Gist: {resp.status_code} {resp.text}")
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении данных в Gist: {e}")
+        
+"""def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -56,7 +106,7 @@ def save_data(data):
     temp_file = DATA_FILE + ".tmp"
     with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(temp_file, DATA_FILE)
+    os.replace(temp_file, DATA_FILE)"""
 
 # === КОМАНДЫ АДМИНА ===
 @bot.message_handler(commands=["jsonout"])
@@ -64,19 +114,22 @@ def jsonout_handler(message):
     if str(message.from_user.id) != ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
-    if not os.path.exists(DATA_FILE):
-        bot.send_message(message.chat.id, "Файл данных не найден.")
-        return
+
     try:
-        with open(DATA_FILE, "rb") as f:
-            bot.send_document(
-                message.chat.id,
-                document=BytesIO(f.read()),
-                visible_file_name="data.json",
-                caption="📁 Текущая база данных"
-            )
+        data = load_data()  # ← теперь из Gist
+        if not data:
+            bot.send_message(message.chat.id, "⚠️ База данных пуста.")
+            return
+        json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+        bot.send_document(
+            message.chat.id,
+            document=BytesIO(json_bytes),
+            visible_file_name="data.json",
+            caption="📁 Текущая база данных"
+        )
     except Exception as e:
-        bot.send_message(message.chat.id, f"Ошибка при отправке файла: {e}")
+        logger.error(f"Ошибка в /jsonout: {e}")
+        bot.send_message(message.chat.id, f"❌ Ошибка при отправке файла: {e}")
 
 # Проверка БД на пустоту по смыслу (json с содержимым, но без задач)
 def is_data_empty(data: dict) -> bool:
@@ -161,8 +214,7 @@ def handle_json_file(msg):
                 reply_markup=make_cancel_button("cancel_jsonin")
             )
             return
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(json_content, f, ensure_ascii=False, indent=2)
+        save_data(json_content)
         user_awaiting_json_file.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
     except json.JSONDecodeError as e:
