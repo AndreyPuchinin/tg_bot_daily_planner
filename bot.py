@@ -17,17 +17,13 @@ user_awaiting_json_file = set()
 user_awaiting_task_text = {}
 user_awaiting_datetime = {}
 
-# Список всех допустимых callback_data для отмены
-CANCEL_ACTIONS = set()
+CANCEL_ACTION_NAMES = {
+    "cancel_task": "/task",
+    "cancel_jsonin": "/jsonin",
+}
 
-# Функция регистрации новой кнопки
-def register_cancel_action(name: str) -> str:
-    CANCEL_ACTIONS.add(name)
-    return name
-
-# Регистрируем
-CANCEL_TASK = register_cancel_action("cancel_task")
-CANCEL_JSON = register_cancel_action("cancel_json")
+# Автоматически формируем множество допустимых callback_data-действий для отмены
+CANCEL_ACTIONS = set(CANCEL_ACTION_NAMES.keys())
 
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
@@ -121,26 +117,35 @@ def handle_json_file(msg):
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
     user_id = str(call.from_user.id)
-    if call.data == "cancel_task":
-        user_awaiting_task_text.pop(user_id, None)
-        user_awaiting_datetime.pop(user_id, None)
-        bot.edit_message_text("❌ Отменено.", call.message.chat.id, call.message.message_id)
-    elif call.data == "cancel_json":
-        user_awaiting_json_file.discard(user_id)
-        bot.edit_message_text("❌ Загрузка отменена.", call.message.chat.id, call.message.message_id)
-    else:
-        # На случай, если кто-то подсунет неизвестный callback
-        bot.answer_callback_query(call.id, "Неизвестное действие.", show_alert=False)
+    action = call.data
+    command_name = CANCEL_ACTION_NAMES[action]
 
-"""@bot.callback_query_handler(func=lambda call: call.data == "cancel_json")
-def cancel_json_upload(call):
-    user_id = str(call.from_user.id)
-    user_awaiting_json_file.discard(user_id)
-    bot.edit_message_text(
-        "❌ Загрузка отменена.",
-        call.message.chat.id,
-        call.message.message_id
-    )"""
+    # Определяем, находится ли пользователь в нужном режиме
+    in_mode = False
+    if action == "cancel_task":
+        in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
+    elif action == "cancel_jsonin":
+        in_mode = user_id in user_awaiting_json_file
+
+    if in_mode:
+        # Выходим из режима
+        if action == "cancel_task":
+            user_awaiting_task_text.pop(user_id, None)
+            user_awaiting_datetime.pop(user_id, None)
+        elif action == "cancel_jsonin":
+            user_awaiting_json_file.discard(user_id)
+
+        # Отправляем сообщение в чат (не редактируем старое!)
+        bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
+        # Подтверждаем нажатие кнопки (убираем "часики")
+        bot.answer_callback_query(call.id)
+    else:
+        # Пользователь уже не в режиме → показываем всплывающее уведомление
+        bot.answer_callback_query(
+            call.id,
+            f"Режим ввода команды {command_name} уже был отменён!",
+            show_alert=False  # можно True, если хочешь модальное окно
+        )
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 def send_long_message(bot, chat_id, text):
@@ -295,14 +300,6 @@ def reminder_daemon():
         except Exception as e:
             print(f"Reminder error: {e}")
         # time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
-
-"""# === ОБРАБОТЧИКИ ОТМЕНЫ ===
-@bot.callback_query_handler(func=lambda call: call.data == "cancel_task")
-def cancel_task(call):
-    user_id = str(call.from_user.id)
-    user_awaiting_task_text.pop(user_id, None)
-    user_awaiting_datetime.pop(user_id, None)
-    bot.edit_message_text("❌ Отменено.", call.message.chat.id, call.message.message_id)"""
 
 # === ЗАПУСК ===
 if __name__ == "__main__":
