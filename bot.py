@@ -78,25 +78,63 @@ def jsonout_handler(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"Ошибка при отправке файла: {e}")
 
+# Проверка БД на пустоту по смыслу (json с содержимым, но без задач)
+def is_data_empty(data: dict) -> bool:
+    """Проверяет, содержит ли data хоть одну задачу у любого пользователя."""
+    if not data:
+        return True
+    for user_data in data.values():
+        if isinstance(user_data, dict) and user_data.get("tasks"):
+            # Если у кого-то есть хотя бы одна задача — не пусто
+            return False
+    return True
+
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
     if str(message.from_user.id) != ADMIN_USER_ID:
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         except Exception as e:
-            print(f"Не удалось отправить сообщение: {e}")
+            logger.error(f"Не удалось отправить сообщение: {e}")
         return
 
-    user_awaiting_json_file.add(str(message.from_user.id))
-    try:
+    # Отправляем текущую БД (если есть)
+    if not os.path.exists(DATA_FILE):
         bot.send_message(
             message.chat.id,
-            "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.",
+            "⚠️ База данных ещё не создана.",
             reply_markup=make_cancel_button("cancel_jsonin")
         )
-    except Exception as e:
-        print(f"Ошибка при отправке сообщения в /jsonin: {e}")
-        # Можно отправить fallback через повторную попытку или просто логировать
+    else:
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if is_data_empty(data):
+                bot.send_message(
+                    message.chat.id,
+                    "⚠️ База данных существует, но пока пуста.",
+                    reply_markup=make_cancel_button("cancel_jsonin")
+                )
+            else:
+                # Отправляем файл
+                with open(DATA_FILE, "rb") as f:
+                    bot.send_document(
+                        message.chat.id,
+                        document=BytesIO(f.read()),
+                        visible_file_name="data.json",
+                        caption="📁 Текущая база данных:",
+                        reply_markup=make_cancel_button("cancel_jsonin")
+                    )
+        except Exception as e:
+            logger.error(f"Ошибка при чтении БД в /jsonin: {e}")
+            bot.send_message(
+                message.chat.id,
+                "❌ Не удалось прочитать текущую базу данных.",
+                reply_markup=make_cancel_button("cancel_jsonin")
+            )
+
+    # В любом случае — входим в режим ожидания нового файла
+    user_awaiting_json_file.add(str(message.from_user.id))
 
 @bot.message_handler(content_types=["document"], func=lambda msg: str(msg.from_user.id) in user_awaiting_json_file)
 def handle_json_file(msg):
