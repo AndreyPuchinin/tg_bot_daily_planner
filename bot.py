@@ -67,9 +67,9 @@ def load_data():
                     if not content.strip():
                         return {}
                     return json.loads(content)
-        logger.error(f"Не удалось загрузить данные из Gist: {resp.status_code} {resp.text}")
+        logger.error(f"❌Не удалось загрузить данные из Gist: {resp.status_code} {resp.text}")
     except json.JSONDecodeError as e:
-        logger.error(f"Ошибка разбора JSON из Gist: {e}")
+        logger.error(f"❌Ошибка разбора JSON из Gist: {e}")
         return {}
     except Exception as e:
         logger.error(f"Ошибка при загрузке данных из Gist: {e}")
@@ -78,7 +78,7 @@ def load_data():
 def save_data(data):
     """Сохраняет данные в приватный Gist."""
     if not GIST_ID or not GITHUB_TOKEN:
-        logger.error("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
+        logger.error("❌GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
         return
     url = f"https://api.github.com/gists/{GIST_ID}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -92,9 +92,9 @@ def save_data(data):
     try:
         resp = requests.patch(url, json=payload, headers=headers, timeout=10)
         if resp.status_code != 200:
-            logger.error(f"Не удалось сохранить данные в Gist: {resp.status_code} {resp.text}")
+            logger.error(f"❌Не удалось сохранить данные в Gist: {resp.status_code} {resp.text}")
     except Exception as e:
-        logger.error(f"Ошибка при сохранении данных в Gist: {e}")
+        logger.error(f"❌Ошибка при сохранении данных в Gist: {e}")
         
 """def load_data():
     if os.path.exists(DATA_FILE):
@@ -123,7 +123,7 @@ def jsonout_handler(message):
         elif is_data_empty(data):
             bot.send_message(
                 message.chat.id,
-                main_msg + "\n⚠️ База данных существует, но пока пуста.",
+                "\n⚠️ База данных существует, но пока пуста.",
                 reply_markup=make_cancel_button("cancel_jsonin")
             )
             return
@@ -155,7 +155,7 @@ def jsonin_handler(message):
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         except Exception as e:
-            logger.error(f"Не удалось отправить сообщение: {e}")
+            logger.error(f"❌Не удалось отправить сообщение: {e}")
         return
 
     main_msg = "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота."
@@ -186,7 +186,7 @@ def jsonin_handler(message):
                 reply_markup=make_cancel_button("cancel_jsonin")
             )
     except Exception as e:
-        logger.error(f"Ошибка при чтении БД в /jsonin: {e}")
+        logger.error(f"❌Ошибка при чтении БД в /jsonin: {e}")
         bot.send_message(
             message.chat.id,
             main_msg + "\n❌ Не удалось прочитать текущую базу данных.",
@@ -201,12 +201,12 @@ def handle_json_file(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
     if not msg.document:
-        bot.send_message(chat_id, "Пожалуйста, отправьте именно файл.", reply_markup=make_cancel_button("cancel_jsonin"))
+        bot.send_message(chat_id, "⚠️Пожалуйста, отправьте именно файл.", reply_markup=make_cancel_button("cancel_jsonin"))
         return
     file_info = bot.get_file(msg.document.file_id)
     file_name = msg.document.file_name or ""
     if not file_name.lower().endswith(".json"):
-        bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_button("cancel_jsonin"))
+        bot.send_message(chat_id, "⚠️Файл должен иметь расширение .json.", reply_markup=make_cancel_button("cancel_jsonin"))
         return
     try:
         downloaded_file = bot.download_file(file_info.file_path)
@@ -224,8 +224,8 @@ def handle_json_file(msg):
         user_awaiting_json_file.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
     except json.JSONDecodeError as e:
-        error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
-        logger.error(f"JSON decode error from user {msg.from_user.id}: {error_details}")
+        error_details = f"❌Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
+        logger.error(f"❌JSON decode error from user {msg.from_user.id}: {error_details}")
         bot.send_message(
             chat_id,
             f"❌ Некорректный JSON-файл.\nПодробности:\n{error_details}",
@@ -233,10 +233,10 @@ def handle_json_file(msg):
         )
     except UnicodeDecodeError as e:
         logger.error(f"Unicode decode error from user {msg.from_user.id}: {e}")
-        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
+        bot.send_message(chat_id, "❌Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
     except Exception as e:
         logger.error(f"Unexpected error in handle_json_file: {e}", exc_info=True)
-        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
+        bot.send_message(chat_id, f"❌Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
         
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
