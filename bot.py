@@ -2,6 +2,7 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Flask, request # НАСТРОЙКА WEBHOOK ДЛЯ RENDER
 import threading
+import logging
 import telebot
 import json
 import os
@@ -16,6 +17,10 @@ ADMIN_USER_ID = "1287372767" #в настройки: добавлять и уд�
 
 # WEB-HOOK
 app = Flask(__name__)
+
+# Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Состояния
 user_awaiting_json_file = set()
@@ -102,29 +107,44 @@ def handle_json_file(msg):
         return
     file_info = bot.get_file(msg.document.file_id)
     file_name = msg.document.file_name or ""
-    if not file_name.lower().endswith(".json"):
-        bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_button("cancel_jsonin"))
-        return
     try:
+        user_id = str(msg.from_user.id)
+        chat_id = msg.chat.id
+        if not msg.document:
+            bot.send_message(chat_id, "Пожалуйста, отправьте именно файл.", reply_markup=make_cancel_inline())
+            return
+        file_info = bot.get_file(msg.document.file_id)
+        file_name = msg.document.file_name or ""
+        if not file_name.lower().endswith(".json"):
+            bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_inline())
+            return
+
         downloaded_file = bot.download_file(file_info.file_path)
         json_content = json.loads(downloaded_file.decode("utf-8"))
+
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(json_content, f, ensure_ascii=False, indent=2)
+
         user_awaiting_json_file.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
+
     except json.JSONDecodeError as e:
+        print("AAAAAAAAAAAAA")
         error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
+        logger.error(f"JSON decode error from user {msg.from_user.id}: {error_details}")
         bot.send_message(
             chat_id,
             f"❌ Некорректный JSON-файл.\nПодробности:\n```\n{error_details}\n```",
             parse_mode="Markdown",
             reply_markup=make_cancel_inline()
         )
-    except UnicodeDecodeError:
-        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
+    except UnicodeDecodeError as e:
+        logger.error(f"Unicode decode error from user {msg.from_user.id}: {e}")
+        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_inline())
     except Exception as e:
-        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
-
+        logger.error(f"Unexpected error in handle_json_file: {e}", exc_info=True)
+        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_inline())
+        
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
     user_id = str(call.from_user.id)
