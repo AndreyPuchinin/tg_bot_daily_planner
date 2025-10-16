@@ -107,42 +107,30 @@ def handle_json_file(msg):
         return
     file_info = bot.get_file(msg.document.file_id)
     file_name = msg.document.file_name or ""
+    if not file_name.lower().endswith(".json"):
+        bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_button("cancel_jsonin"))
+        return
     try:
-        user_id = str(msg.from_user.id)
-        chat_id = msg.chat.id
-        if not msg.document:
-            bot.send_message(chat_id, "Пожалуйста, отправьте именно файл.", reply_markup=make_cancel_inline())
-            return
-        file_info = bot.get_file(msg.document.file_id)
-        file_name = msg.document.file_name or ""
-        if not file_name.lower().endswith(".json"):
-            bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_inline())
-            return
-
         downloaded_file = bot.download_file(file_info.file_path)
         json_content = json.loads(downloaded_file.decode("utf-8"))
-
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(json_content, f, ensure_ascii=False, indent=2)
-
         user_awaiting_json_file.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
-
     except json.JSONDecodeError as e:
         error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
-        # logger.error(f"JSON decode error from user {msg.from_user.id}: {error_details}")
-        bot.send_message(message.chat.id, "✅ Команда /jsonin получена. Бот жив.")
+        logger.error(f"JSON decode error from user {msg.from_user.id}: {error_details}")
         bot.send_message(
             chat_id,
             f"❌ Некорректный JSON-файл.\nПодробности:\n{error_details}",
-            reply_markup=make_cancel_inline()
+            reply_markup=make_cancel_button("cancel_jsonin")
         )
     except UnicodeDecodeError as e:
         logger.error(f"Unicode decode error from user {msg.from_user.id}: {e}")
-        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_inline())
+        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
     except Exception as e:
         logger.error(f"Unexpected error in handle_json_file: {e}", exc_info=True)
-        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_inline())
+        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
         
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
