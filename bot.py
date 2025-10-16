@@ -82,7 +82,7 @@ def jsonin_handler(message):
         bot.send_message(
             message.chat.id,
             "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.",
-            reply_markup=make_cancel_button("cancel_json")
+            reply_markup=make_cancel_button("cancel_jsonin")
         )
     except Exception as e:
         print(f"Ошибка при отправке сообщения в /jsonin: {e}")
@@ -93,12 +93,12 @@ def handle_json_file(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
     if not msg.document:
-        bot.send_message(chat_id, "Пожалуйста, отправьте именно файл.", reply_markup=make_cancel_button("cancel_json"))
+        bot.send_message(chat_id, "Пожалуйста, отправьте именно файл.", reply_markup=make_cancel_button("cancel_jsonin"))
         return
     file_info = bot.get_file(msg.document.file_id)
     file_name = msg.document.file_name or ""
     if not file_name.lower().endswith(".json"):
-        bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_button("cancel_json"))
+        bot.send_message(chat_id, "Файл должен иметь расширение .json.", reply_markup=make_cancel_button("cancel_jsonin"))
         return
     try:
         downloaded_file = bot.download_file(file_info.file_path)
@@ -108,11 +108,11 @@ def handle_json_file(msg):
         user_awaiting_json_file.discard(user_id)
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
     except json.JSONDecodeError:
-        bot.send_message(chat_id, "Ошибка: файл не является валидным JSON.", reply_markup=make_cancel_button("cancel_json"))
+        bot.send_message(chat_id, "Ошибка: файл не является валидным JSON.", reply_markup=make_cancel_button("cancel_jsonin"))
     except UnicodeDecodeError:
-        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_json"))
+        bot.send_message(chat_id, "Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
     except Exception as e:
-        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_json"))
+        bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
 
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
