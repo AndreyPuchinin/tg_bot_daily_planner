@@ -130,7 +130,7 @@ def handle_json_file(msg):
 
     except json.JSONDecodeError as e:
         error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
-        logger.error(f"JSON decode error from user {msg.from_user.id}: {error_details}")
+        # logger.error(f"JSON decode error from user {msg.from_user.id}: {error_details}")
         bot.send_message(message.chat.id, "✅ Команда /jsonin получена. Бот жив.")
         bot.send_message(
             chat_id,
