@@ -17,6 +17,18 @@ user_awaiting_json_file = set()
 user_awaiting_task_text = {}
 user_awaiting_datetime = {}
 
+# Список всех допустимых callback_data для отмены
+CANCEL_ACTIONS = {}
+
+# Функция регистрации новой кнопки
+def register_cancel_action(name: str) -> str:
+    CANCEL_ACTIONS.add(name)
+    return name
+
+# Регистрируем
+CANCEL_TASK = register_cancel_action("cancel_task")
+CANCEL_JSON = register_cancel_action("cancel_json")
+
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
 
@@ -106,7 +118,21 @@ def handle_json_file(msg):
     except Exception as e:
         bot.send_message(chat_id, f"Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_json"))
 
-@bot.callback_query_handler(func=lambda call: call.data == "cancel_json")
+@bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
+def universal_cancel_handler(call):
+    user_id = str(call.from_user.id)
+    if call.data == "cancel_task":
+        user_awaiting_task_text.pop(user_id, None)
+        user_awaiting_datetime.pop(user_id, None)
+        bot.edit_message_text("❌ Отменено.", call.message.chat.id, call.message.message_id)
+    elif call.data == "cancel_json":
+        user_awaiting_json_file.discard(user_id)
+        bot.edit_message_text("❌ Загрузка отменена.", call.message.chat.id, call.message.message_id)
+    else:
+        # На случай, если кто-то подсунет неизвестный callback
+        bot.answer_callback_query(call.id, "Неизвестное действие.", show_alert=False)
+
+"""@bot.callback_query_handler(func=lambda call: call.data == "cancel_json")
 def cancel_json_upload(call):
     user_id = str(call.from_user.id)
     user_awaiting_json_file.discard(user_id)
@@ -114,7 +140,7 @@ def cancel_json_upload(call):
         "❌ Загрузка отменена.",
         call.message.chat.id,
         call.message.message_id
-    )
+    )"""
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 def send_long_message(bot, chat_id, text):
