@@ -323,5 +323,5 @@ if __name__ == '__main__':
     reminder_thread.start()
     bot.remove_webhook()
     bot.set_webhook(url=WEBHOOK_URL + '/' + TELEGRAM_BOT_TOKEN)
-    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+    # app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
     # bot.polling()
