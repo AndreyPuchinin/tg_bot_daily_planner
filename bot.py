@@ -1,5 +1,6 @@
 from io import BytesIO
 from datetime import datetime, timedelta
+from flask import Flask, request
 import threading
 import telebot
 import json
@@ -11,6 +12,8 @@ DATA_FILE = "data.json"
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 ADMIN_USER_ID = "1287372767" #в настройки: добавлять и удалять админов. Возможности админов и администрирования
+
+app = Flask(__name__)
 
 # Состояния
 user_awaiting_json_file = set()
@@ -51,6 +54,7 @@ def save_data(data):
 # === КОМАНДЫ АДМИНА ===
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
+    print(10/0)
     if str(message.from_user.id) != ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
@@ -301,8 +305,26 @@ def reminder_daemon():
             print(f"Reminder error: {e}")
         # time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
 
-# === ЗАПУСК ===
-if __name__ == "__main__":
+WEBHOOK_URL = "https://your-bot.onrender.com"  # ← замени на свой URL
+
+@app.route('/' + TELEGRAM_BOT_TOKEN, methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return ''
+    else:
+        return 'Invalid content type', 403
+
+@app.route('/')
+def index():
+    return 'Bot is running.'
+
+if __name__ == '__main__':
     reminder_thread = threading.Thread(target=reminder_daemon, daemon=True)
     reminder_thread.start()
-    bot.polling()
+    bot.remove_webhook()
+    bot.set_webhook(url=WEBHOOK_URL + '/' + TELEGRAM_BOT_TOKEN)
+    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+    # bot.polling()
