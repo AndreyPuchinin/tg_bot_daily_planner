@@ -133,7 +133,7 @@ def handle_json_file(msg):
         logger.error(f"JSON decode error from user {msg.from_user.id}: {error_details}")
         bot.send_message(
             chat_id,
-            f"❌ Некорректный JSON-файл.\nПодробности:\n<pre>{error_details}</pre>",
+            f"❌ Некорректный JSON-файл.\nПодробности:\n{error_details}",
             parse_mode="HTML",
             reply_markup=make_cancel_inline()
         )
