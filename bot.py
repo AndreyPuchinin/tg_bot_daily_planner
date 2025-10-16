@@ -118,7 +118,7 @@ def jsonout_handler(message):
     try:
         data = load_data()  # ← теперь из Gist
         if not data:
-            bot.send_message(message.chat.id, "⚠️ База данных пуста.")
+            bot.send_message(message.chat.id, "⚠️ База данных еще не создана.")
             return
         elif is_data_empty(data):
             bot.send_message(
@@ -423,7 +423,7 @@ def reminder_daemon():
                 check_and_send_reminders(bot, user_id, user_id, data)
         except Exception as e:
             print(f"Reminder error: {e}")
-        # time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
+        time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
 
 @app.route('/' + TELEGRAM_BOT_TOKEN, methods=['POST'])
 def webhook():
