@@ -120,6 +120,13 @@ def jsonout_handler(message):
         if not data:
             bot.send_message(message.chat.id, "⚠️ База данных пуста.")
             return
+        elif is_data_empty(data):
+            bot.send_message(
+                message.chat.id,
+                main_msg + "\n⚠️ База данных существует, но пока пуста.",
+                reply_markup=make_cancel_button("cancel_jsonin")
+            )
+            return
         json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
         bot.send_document(
             message.chat.id,
