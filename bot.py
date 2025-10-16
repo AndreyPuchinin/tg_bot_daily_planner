@@ -91,6 +91,7 @@ def is_data_empty(data: dict) -> bool:
 
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
+    main_msg = "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота."
     if str(message.from_user.id) != ADMIN_USER_ID:
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
@@ -102,7 +103,7 @@ def jsonin_handler(message):
     if not os.path.exists(DATA_FILE):
         bot.send_message(
             message.chat.id,
-            "⚠️ База данных ещё не создана.",
+            main_msg+"\n⚠️ База данных ещё не создана.",
             reply_markup=make_cancel_button("cancel_jsonin")
         )
     else:
@@ -112,7 +113,7 @@ def jsonin_handler(message):
             if is_data_empty(data):
                 bot.send_message(
                     message.chat.id,
-                    "⚠️ База данных существует, но пока пуста.",
+                    main_msg+"\n⚠️ База данных существует, но пока пуста.",
                     reply_markup=make_cancel_button("cancel_jsonin")
                 )
             else:
@@ -122,14 +123,14 @@ def jsonin_handler(message):
                         message.chat.id,
                         document=BytesIO(f.read()),
                         visible_file_name="data.json",
-                        caption="📁 Текущая база данных:",
+                        caption=main_msg+"\n📁 Текущая база данных:",
                         reply_markup=make_cancel_button("cancel_jsonin")
                     )
         except Exception as e:
-            logger.error(f"Ошибка при чтении БД в /jsonin: {e}")
+            logger.error(f"{main_msg}\nОшибка при чтении БД в /jsonin: {e}")
             bot.send_message(
                 message.chat.id,
-                "❌ Не удалось прочитать текущую базу данных.",
+                main_msg+"\n❌ Не удалось прочитать текущую базу данных.",
                 reply_markup=make_cancel_button("cancel_jsonin")
             )
 
