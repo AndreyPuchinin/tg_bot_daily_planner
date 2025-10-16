@@ -403,7 +403,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             continue
         if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 13:
             tasks_to_remind.append(task)
-        elif (task_time - now).total_seconds() <= 12 * 3600:
+        elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
             tasks_to_remind.append(task)
     if not tasks_to_remind:
         return
