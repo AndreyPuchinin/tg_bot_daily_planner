@@ -413,7 +413,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
         lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
         task["reminded"] = True
     save_data(data)
-    send_long_message(bot, chat_id, "\n".join(lines))
+    send_long_message(bot, chat_id, "\n\n".join(lines).strip())
 
 def reminder_daemon():
     while True:
