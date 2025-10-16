@@ -1,6 +1,5 @@
 from io import BytesIO
 from datetime import datetime, timedelta
-from flask import Flask, request
 import threading
 import telebot
 import json
@@ -12,8 +11,6 @@ DATA_FILE = "data.json"
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 ADMIN_USER_ID = "1287372767" #в настройки: добавлять и удалять админов. Возможности админов и администрирования
-
-app = Flask(__name__)
 
 # Состояния
 user_awaiting_json_file = set()
