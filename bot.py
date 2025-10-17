@@ -440,7 +440,8 @@ def info_handler(message):
     text += "• /task — <i>добавить новую задачу</i>\n"
     text += "• <i>Задачи напоминаются автоматически:</i>\n"
     text += "  – <i>за день в 13:00 по МСК,</i>\n"
-    text += "  – <i>или за 12 часов до начала.</i>\n\n"
+    text += "  – <i>или за 12 часов до начала.</i>\n"
+    text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n"
     text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~2 минут).</i>\n"
     text += "<i>• Также иногда могут быть проблемы с Базой Данных при обновлениях.</i>\n"
     text += "<i>• В этом случае вы можете связаться с админами или просто подождать. При любых действиях, вызывающих ошибку, информация передается админам автоматически.</i>\n\n"
@@ -527,11 +528,12 @@ def handle_daytasks_date_input(msg):
     try:
         target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
+        text = "❌ Неверный формат даты.\n"
+        text += "Используй: ГГГГ-ММ-ДД\n"+
+        text += generate_today_datetime()
         bot.send_message(
             chat_id,
-            "❌ Неверный формат даты.\n"
-            "Используй: ГГГГ-ММ-ДД\n"
-            generate_today_datetime(),
+            text,
             reply_markup=make_cancel_button("cancel_daytasks")
         )
         user_awaiting_daytasks_date.add(user_id)  # вернуть в режим
