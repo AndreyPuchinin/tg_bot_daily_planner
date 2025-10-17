@@ -726,7 +726,7 @@ def handle_weekbydate_input(msg):
             chat_id,
             "❌ Неверный формат даты.\n"
             "Используй: ГГГГ-ММ-ДД\n"
-            "Пример: {example}",
+            f"Пример: {example}",
             reply_markup=make_cancel_button("cancel_weekbydate")
         )
         user_awaiting_weekbydate_input.add(user_id)  # вернуть в режим
