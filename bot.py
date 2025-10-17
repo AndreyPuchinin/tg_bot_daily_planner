@@ -319,6 +319,8 @@ def universal_cancel_handler(call):
             user_awaiting_datetime.pop(user_id, None)
         elif action == "cancel_jsonin":
             user_awaiting_json_file.discard(user_id)
+        elif action == "cancel_feedback":
+            user_awaiting_feedback.discard(user_id)
 
         # Отправляем сообщение в чат (не редактируем старое!)
         bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
