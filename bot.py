@@ -52,6 +52,7 @@ user_awaiting_feedback = set()
 CANCEL_ACTION_NAMES = {
     "cancel_task": "/task",
     "cancel_jsonin": "/jsonin",
+    "cancel_feedback": "/feedback"
 }
 
 # Автоматически формируем множество допустимых callback_data-действий для отмены
@@ -64,7 +65,7 @@ def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
 
 # === УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ КНОПКИ ОТМЕНЫ ===
-def make_cancel_button(callback_data: str = "cancel_task") -> telebot.types.InlineKeyboardMarkup:
+def make_cancel_button(callback_data: str) -> telebot.types.InlineKeyboardMarkup:
     """Создаёт inline-клавиатуру с кнопкой 'Cancel'."""
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("Cancel", callback_data=callback_data))
@@ -298,7 +299,8 @@ def handle_json_file(msg):
     except Exception as e:
         logger.error(f"Unexpected error in handle_json_file: {e}", exc_info=True)
         bot.send_message(chat_id, f"❌Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
-        
+
+# ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
     user_id = str(call.from_user.id)
@@ -312,7 +314,7 @@ def universal_cancel_handler(call):
     elif action == "cancel_jsonin":
         in_mode = user_id in user_awaiting_json_file
     elif action == "cancel_feedback":
-        in_node = user_id in user_awaiting_feedback
+        in_mode = user_id in user_awaiting_feedback
 
     if in_mode:
         # Выходим из режима
