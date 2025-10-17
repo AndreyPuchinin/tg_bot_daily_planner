@@ -675,7 +675,6 @@ def week_handler(message):
         else:
             lines.append("Нет задач")
         lines.append("")  # одна пустая строка после каждого дня
-        lines.append("")  # вторая пустая строка → как в примере
 
     full_message = "\n".join(lines).strip()
     if not full_message:
