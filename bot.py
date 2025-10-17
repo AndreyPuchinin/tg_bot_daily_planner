@@ -212,7 +212,7 @@ def is_data_empty(data: dict) -> bool:
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
     user_name = message.from_user.first_name or "Пользователь"
-    load_data(user_name, message.from_user.id, "jsonout")
+    load_data(user_name, message.from_user.id, "jsonin")
     if str(message.from_user.id) not in ADMIN_USER_ID:
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
@@ -224,7 +224,7 @@ def jsonin_handler(message):
 
     # Загружаем текущую БД из Gist
     try:
-        data = load_data(message.from_user.name, message.from_user.id, "jsonin")
+        data = load_data(user_name, message.from_user.id, "jsonin")
         if not data:
             bot.send_message(
                 message.chat.id,
@@ -370,7 +370,9 @@ def info_handler(message):
     text += "• <i>Задачи напоминаются автоматически:</i>\n"
     text += "  – <i>за день в 13:00 по МСК,</i>\n"
     text += "  – <i>или за 12 часов до начала.</i>\n\n"
-    text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~2 минут).</i>\n\n"
+    text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~2 минут).</i>\n"
+    text += "<i>Также иногда могут быть проблемы с Базой Данных при обновлениях.</i>\n"
+    text += "<i>В этом случае вы можете связаться с админами или просто подождать. При любых действиях, вызывающих ошибку, информация передается админам автоматически.</i>\n\n"
 
     if is_admin:
         text += "<b>Команды для администраторов:</b>\n"
