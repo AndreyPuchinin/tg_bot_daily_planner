@@ -137,6 +137,8 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
             if user_name != "" and user_id != 0 and command != "":
                 bot.send_message(admin_id, message_to_admins)
                 bot.send_message(user_id, "⚠ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
+                # Отправляем сообщение об отмене нужного режима ввода в чат (не редактируем старое!)
+                bot.send_message(call.message.chat.id, f"❌ Режим ввода /{command} отменён.")
         except Exception as e:
             logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
@@ -402,6 +404,8 @@ def task_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
     data = load_data(user_name, message.from_user.id, "task")
+    if data == None:
+        return
     text = message.text[6:].strip()
     if not text:
         bot.send_message(
@@ -426,6 +430,8 @@ def task_text_input(msg):
     user_id = str(msg.from_user.id)
     user_name = msg.from_user.first_name or "Пользователь"
     data = load_data(user_name, user_id, "task")
+    if data == None:
+        return
     user_id = str(msg.from_user.id)
     text = msg.text.strip()
     if not text:
@@ -447,6 +453,8 @@ def datetime_input_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
     data = load_data(user_name, user_id, "task")
+    if data == None:
+        return
     chat_id = message.chat.id
     user_name = message.from_user.first_name or "Пользователь"
     datetime_str = message.text.strip()
