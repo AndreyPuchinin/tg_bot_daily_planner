@@ -256,8 +256,8 @@ def jsonin_handler(message):
                 main_msg + "\n⚠️ База данных существует, но пока пуста.",
                 reply_markup=make_cancel_button("cancel_jsonin")
             )
-        else:
-            # Отправляем текущую БД как файл
+            # Отправляем текущую БД как файл, даже если она пуста
+            # (ведь там могут быть айдишники юзеров...)
             json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
             bot.send_document(
                 message.chat.id,
