@@ -310,9 +310,9 @@ def info_handler(message):
     user_id = str(message.from_user.id)
     is_admin = (user_id == ADMIN_USER_ID)
 
-    text = "ℹ️ <b>Информация о боте «Ежедневник»</b>\n\n"
+    text = "ℹ️ <b>Информация о боте «Ежедневник»</b>\n"
     text += "<b>Для всех пользователей (кроме админов, для них - свои команды):</b>\n"
-    text += "<b><i>Для получения информации о возможностях для админов обратитесь к действующим админам<i><b>\n"
+    text += "<b><i>Для получения информации о возможностях для админов обратитесь к действующим админам</i></b>\n"
     text += "• /start — начать работу с ботом\n"
     text += "• /task — добавить новую задачу\n"
     text += "• Задачи напоминаются автоматически:\n"
@@ -321,11 +321,11 @@ def info_handler(message):
 
     if is_admin:
         text += "<b>Для администратора:</b>\n"
-        text += "• /jsonout — получить текущую БД в виде файла\n"
+            text += "• /jsonout — получить текущуюa БД в виде файла\n"
         text += "• /jsonin — загрузить новую БД из файла\n"
         text += "⚠️ Все операции с БД требуют корректного JSON-формата.\n"
 
-    bot.send_message(message.chat.id, text)
+    bot.send_message(message.chat.id, text, parse_mode="HTML")
 
 @bot.message_handler(commands=["start"])
 def start_handler(message):
