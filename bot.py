@@ -714,6 +714,7 @@ def weekbydate_handler(message):
 def handle_weekbydate_input(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
+    user_name = msg.from_user.first_name
     date_str = msg.text.strip()
 
     # Удаляем из режима сразу
@@ -739,7 +740,7 @@ def handle_weekbydate_input(msg):
 
     # Загружаем данные
     try:
-        data = load_data()
+        data = load_data(user_name, user_id, "weekbydate")
     except Exception as e:
         logger.error(f"Ошибка загрузки БД в /weekbydate: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
