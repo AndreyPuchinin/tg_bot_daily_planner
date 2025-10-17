@@ -182,12 +182,12 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
     user_name = message.from_user.first_name or "Пользователь"
-    load_data(user_name, message.from_user.id, "jsonout")
     if str(message.from_user.id) not in ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
 
     try:
+        data = load_data(user_name, message.from_user.id, "jsonout")
         text = ""
         if not data:
             text += "⚠️ База данных ещё не создана."
@@ -230,7 +230,6 @@ def is_data_empty(data: dict) -> bool:
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
     user_name = message.from_user.first_name or "Пользователь"
-    load_data(user_name, message.from_user.id, "jsonin")
     if str(message.from_user.id) not in ADMIN_USER_ID:
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
@@ -242,6 +241,7 @@ def jsonin_handler(message):
 
     # Загружаем текущую БД из Gist
     try:
+        data = load_data(user_name, message.from_user.id, "jsonin")
         if not data:
             bot.send_message(
                 message.chat.id,
@@ -276,7 +276,7 @@ def jsonin_handler(message):
         logger.error(f"❌Ошибка при чтении БД в /jsonin: {e}")
         bot.send_message(
             message.chat.id,
-            main_msg + "\n❌ Не удалось прочитать текущую базу данных.",
+            main_msg + f"\n❌ Не удалось прочитать текущую базу данных: {e}",
             reply_markup=make_cancel_button("cancel_jsonin")
         )
 
