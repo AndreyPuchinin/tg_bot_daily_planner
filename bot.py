@@ -365,12 +365,12 @@ def universal_cancel_handler(call):
         )
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
-def send_long_message(bot, chat_id, text):
+def send_long_message(bot, chat_id, text, parse_mode=None):
     if not text.strip():
         return
     max_len = 4000
     for i in range(0, len(text), max_len):
-        bot.send_message(chat_id, text[i:i + max_len], parse_mode="HTML")
+        bot.send_message(chat_id, text[i:i + max_len], parse_mode=parse_mode)
 
 def generate_example_datetime():
     now = now_msk()
@@ -689,8 +689,10 @@ def week_handler(message):
     full_message = "\n".join(lines).strip()
     if not full_message:
         full_message = "На ближайшую неделю задач нет."
+        send_long_message(bot, message.chat.id, full_message)
+        return
 
-    send_long_message(bot, message.chat.id, full_message)
+    send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["weekbydate"])
 def weekbydate_handler(message):
