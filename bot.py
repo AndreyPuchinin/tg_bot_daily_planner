@@ -142,6 +142,20 @@ def save_data(data):
     os.replace(temp_file, DATA_FILE)"""
 
 # === КОМАНДЫ АДМИНА ===
+def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
+    """Отправляет всем админам уведомление о регистрации нового пользователя."""
+    message_to_admins = (
+        f"🆕 Новый пользователь зарегистрировался в боте!\n"
+        f"Имя: {user_name}\n"
+        f"ID: {user_id}\n"
+        f"Chat ID: {chat_id}"
+    )
+    for admin_id in ADMIN_USER_ID:
+        try:
+            bot.send_message(admin_id, message_to_admins)
+        except Exception as e:
+            logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     """Отправляет всем админам уведомление о проблеме с БД."""
     message_to_admins = (
@@ -469,6 +483,7 @@ def start_handler(message):
                 "/start - запустить бота\n"
                 "/task — добавить задачу\n"
             )
+            notify_admins_about_new_user(user_name, user_id, str(message.chat.id))
             return
 
         # Если не сохранилось — повторяем цикл (возможно, кто-то перезаписал)
