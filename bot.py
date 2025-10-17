@@ -189,7 +189,6 @@ def jsonout_handler(message):
 
     try:
         text = ""
-        data = load_data(user_name, message.from_user.id, "jsonout")
         if not data:
             text += "⚠️ База данных ещё не создана."
         elif is_data_empty(data):
@@ -243,7 +242,6 @@ def jsonin_handler(message):
 
     # Загружаем текущую БД из Gist
     try:
-        data = load_data(user_name, message.from_user.id, "jsonin")
         if not data:
             bot.send_message(
                 message.chat.id,
