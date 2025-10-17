@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 user_awaiting_json_file = set()
 user_awaiting_task_text = {}
 user_awaiting_datetime = {}
+user_awaiting_feedback = set()
 
 CANCEL_ACTION_NAMES = {
     "cancel_task": "/task",
@@ -358,6 +359,7 @@ def info_handler(message):
     text += "<i>Для получения информации о возможностях для админов обратитесь к действующим админам</i>\n\n"
     text += "• /start — <i>начать работу с ботом</i>\n"
     text += "• /info — <i>получить подробную справку</i>\n"
+    text += "• /feedback — <i>отправить сообщение админам</i>\n"
     text += "• /task — <i>добавить новую задачу</i>\n"
     text += "• <i>Задачи напоминаются автоматически:</i>\n"
     text += "  – <i>за день в 13:00 по МСК,</i>\n"
@@ -371,6 +373,56 @@ def info_handler(message):
         text += "<i>⚠️ Все операции с БД требуют корректного JSON-формата.</i>\n"
 
     bot.send_message(message.chat.id, text, parse_mode="HTML")
+
+@bot.message_handler(commands=["feedback"])
+def feedback_handler(message):
+    user_id = str(message.from_user.id)
+    bot.send_message(
+        message.chat.id,
+        "Напишите ваше сообщение админам. Это может быть жалоба, пожелание или благодарность.\n"
+        "Если вы хотите, чтобы с вами связались — укажите это в вашем сообщении.\n"
+        "Если вы хотите, чтобы с вами связались вне Telegram или вы хотите указать часы для связи — укажите это дополнительно.",
+        reply_markup=make_cancel_button("cancel_feedback")
+    )
+    user_awaiting_feedback.add(user_id)
+
+@bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_feedback)
+def handle_feedback_message(msg):
+    user_id = str(msg.from_user.id)
+    user_name = msg.from_user.first_name or "Пользователь"
+    feedback_text = msg.text.strip()
+
+    if not feedback_text:
+        bot.send_message(
+            msg.chat.id,
+            "Сообщение не может быть пустым. Пожалуйста, напишите что-нибудь.",
+            reply_markup=make_cancel_button("cancel_feedback")
+            )
+        return
+
+    # Формируем сообщение для админов
+    admin_message = (
+        f"📩 Пользователь {user_name} (ID={user_id}) отправил фидбек:\n\n"
+        f"{feedback_text}"
+    )
+
+    # Рассылаем всем админам
+    success_count = 0
+    for admin_id in ADMIN_USER_ID:
+        try:
+            bot.send_message(admin_id, admin_message)
+            success_count += 1
+        except Exception as e:
+            logger.error(f"Не удалось отправить фидбек админу {admin_id}: {e}")
+
+    # Подтверждаем пользователю
+    if success_count > 0:
+        bot.send_message(msg.chat.id, "Спасибо. Ваше сообщение отправлено админам бота.")
+    else:
+        bot.send_message(msg.chat.id, "⚠️ Не удалось отправить сообщение. Попробуйте позже.")
+
+    # Выходим из режима ожидания
+    user_awaiting_feedback.discard(user_id)
 
 @bot.message_handler(commands=["start"])
 def start_handler(message):
