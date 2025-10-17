@@ -150,7 +150,7 @@ def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
     """Отправляет всем админам уведомление о регистрации нового пользователя."""
     message_to_admins = (
         f"🆕 Новый пользователь зарегистрировался в боте!\n\n"
-        f"<b>Имя: {user_name}</i></b>\n"
+        f"<b>Имя: <i>{user_name}</i></b>\n"
         f"<i><b>ID:</b> {user_id}</i>\n"
         f"<i><b>Chat ID:</b> {chat_id}</i>"
     )
@@ -414,7 +414,7 @@ def start_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.from_user.id, user_name)
         return
 
     for attempt in range(3):  # до 3 попыток при конфликте
@@ -498,7 +498,7 @@ def info_handler(message):
 def feedback_handler(message):
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.from_user.id, user_name)
         return
     bot.send_message(
         message.chat.id,
@@ -551,7 +551,7 @@ def handle_feedback_message(msg):
 def daytasks_handler(message):
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.from_user.id, user_name)
         return
     example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
     bot.send_message(
@@ -621,7 +621,7 @@ def handle_daytasks_date_input(msg):
 @bot.message_handler(commands=["today"])
 def today_handler(message):
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.from_user.id, user_name)
         return
 
     user_id = str(message.from_user.id)
@@ -649,7 +649,7 @@ def today_handler(message):
 @bot.message_handler(commands=["week"])
 def week_handler(message):
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.from_user.id, user_name)
         return
 
     user_id = str(message.from_user.id)
@@ -695,7 +695,7 @@ def week_handler(message):
 @bot.message_handler(commands=["weekbydate"])
 def weekbydate_handler(message):
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.from_user.id, user_name)
         return
 
     user_id = str(message.from_user.id)
@@ -785,7 +785,7 @@ def handle_weekbydate_input(msg):
 def task_handler(message):
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.from_user.id, user_name)
         return
     user_name = message.from_user.first_name or "Пользователь"
     data = load_data(user_name, message.from_user.id, "task")
