@@ -293,23 +293,26 @@ def start_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
 
-    for attempt in range(3):  # до 3 попыток
+    for attempt in range(3):  # до 3 попыток при конфликте
+        # 1. Читаем СВЕЖУЮ БД из Gist
         data = load_data()
+
+        # 2. Если пользователь уже есть — выходим
         if user_id in data:
             bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
             return
 
-        # Добавляем нового пользователя
+        # 3. Добавляем пользователя
         data[user_id] = {
             "user_name": user_name,
             "chat_id": str(message.chat.id),
             "tasks": []
         }
 
-        # Сохраняем
+        # 4. Сохраняем ВСЮ БД (включая новых пользователей)
         save_data(data)
 
-        # Проверяем, что пользователь действительно появился в БД
+        # 5. Проверяем, что всё сохранилось
         data_check = load_data()
         if user_id in data_check:
             bot.send_message(
@@ -321,11 +324,13 @@ def start_handler(message):
                 "/task — добавить задачу\n"
             )
             return
-        # Если не сохранилось — повторяем цикл (возможно, конфликт записи)
+
+        # Если не сохранилось — повторяем цикл (возможно, кто-то перезаписал)
+        logger.warning(f"Попытка {attempt + 1}: пользователь {user_id} не сохранился в БД")
 
     # Если все попытки провалились
     bot.send_message(message.chat.id, "⚠️ Не удалось инициализировать профиль. Попробуйте позже.")
-    logger.error(f"Failed to initialize user {user_id} after 3 attempts")
+    logger.error(f"❌ Не удалось инициализировать пользователя {user_id} после 3 попыток")
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
