@@ -697,50 +697,52 @@ def week_handler(message):
 @bot.message_handler(commands=["weekbydate"])
 def weekbydate_handler(message):
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, user_name)
+        stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
-
     user_id = str(message.from_user.id)
-    example = now_msk().strftime("%Y-%m-%d")
+    # Пример даты — сегодня + 7 дней
+    example_date = (now_msk().date() + timedelta(days=7)).strftime("%Y-%m-%d")
     bot.send_message(
         message.chat.id,
         f"Введите дату в формате: ГГГГ-ММ-ДД\n"
-        f"Пример: {example}",
+        f"Пример: {example_date}",
         reply_markup=make_cancel_button("cancel_weekbydate")
     )
     user_awaiting_weekbydate_input.add(user_id)
+
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_weekbydate_input)
 def handle_weekbydate_input(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
-    user_name = msg.from_user.first_name
+    user_name = msg.from_user.first_name or "Пользователь"
     date_str = msg.text.strip()
 
-    # Удаляем из режима сразу
+    # Убираем пользователя из режима ожидания сразу
     user_awaiting_weekbydate_input.discard(user_id)
 
+    # Проверка формата даты
     try:
         target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
-        example = now_msk().strftime("%Y-%m-%d")
+        # При ошибке — снова предлагаем ввод, с датой +7 дней
+        example_date = (now_msk().date() + timedelta(days=7)).strftime("%Y-%m-%d")
         bot.send_message(
             chat_id,
             "❌ Неверный формат даты.\n"
             "Используй: ГГГГ-ММ-ДД\n"
-            f"Пример: {example}",
+            f"Пример: {example_date}",
             reply_markup=make_cancel_button("cancel_weekbydate")
         )
-        user_awaiting_weekbydate_input.add(user_id)
+        user_awaiting_weekbydate_input.add(user_id)  # вернуть в режим
         return
 
-    # Находим неделю (ПН–ВС)
-    monday = target_date - timedelta(days=target_date.weekday())
-    week_days = [monday + timedelta(days=i) for i in range(7)]
-
-    # Загружаем данные
+    # Загружаем данные — передаём user_id, а не chat_id!
     try:
         data = load_data(user_name, user_id, "weekbydate")
+        if data is None:
+            bot.send_message(chat_id, USER_DB_ERROR_MESSAGE)
+            return
     except Exception as e:
         logger.error(f"Ошибка загрузки БД в /weekbydate: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -750,9 +752,13 @@ def handle_weekbydate_input(msg):
         bot.send_message(chat_id, "Сначала отправьте /start")
         return
 
-    # Собираем задачи по дням
+    # Находим понедельник недели, к которой относится введённая дата
+    monday = target_date - timedelta(days=target_date.weekday())
+    week_days = [monday + timedelta(days=i) for i in range(7)]
+
+    # Собираем задачи
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
-    week_lines = []
+    lines = []
     has_any_task = False
 
     for day in week_days:
@@ -764,33 +770,20 @@ def handle_weekbydate_input(msg):
                 task_dt = datetime.fromisoformat(task["datetime"])
                 if task_dt.date() == day:
                     tasks.append(f"• {task['text']} ({task_dt.strftime('%H:%M')})")
+                    has_any_task = True
             except (ValueError, KeyError):
                 continue
-
-        if tasks:
-            has_any_task = True
-        # Сохраняем всё для последующего вывода (но не форматируем пока)
-        week_lines.append((day, tasks))
-
-    # Формируем финальное сообщение
-    if not has_any_task:
-        send_long_message(bot, chat_id, "На эту неделю задач нет.")
-        return
-
-    lines = []
-    for day, tasks in week_lines:
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
         lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
-        if tasks:
-            lines.append("\n".join(tasks))
-        else:
-            lines.append("Нет задач")
-        lines.append("")
-        lines.append("")
+        lines.append("\n".join(tasks) if tasks else "Нет задач")
+        lines.append("")  # пустая строка между днями
 
-    full_message = "\n".join(lines).strip()
-    send_long_message(bot, chat_id, full_message, parse_mode="HTML")
+    if not has_any_task:
+        bot.send_message(chat_id, "На эту неделю задач нет.")
+    else:
+        full_message = "\n".join(lines).strip()
+        send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
