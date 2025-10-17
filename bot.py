@@ -746,7 +746,7 @@ def handle_weekbydate_input(msg):
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
         return
 
-    if user_id not in 
+    if user_id not in data:
         bot.send_message(chat_id, "Сначала отправьте /start")
         return
 
