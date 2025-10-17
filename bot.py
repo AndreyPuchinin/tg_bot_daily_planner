@@ -40,6 +40,9 @@ CANCEL_ACTION_NAMES = {
 # Автоматически формируем множество допустимых callback_data-действий для отмены
 CANCEL_ACTIONS = set(CANCEL_ACTION_NAMES.keys())
 
+# Текст оповещения о системной ошибке для пользователей
+USER_DB_ERROR_MESSAGE = "⚠️ Произошла ошибка при работе с базой данных. Обратитесь, пожалуйста, к администраторам бота!"
+
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
 
@@ -52,14 +55,13 @@ def make_cancel_button(callback_data: str = "cancel_task") -> telebot.types.Inli
 
 # === РАБОТА С ФАЙЛАМИ ===
 def load_data():
-    """Загружает данные из приватного Gist."""
+    """Загружает данные из приватного Gist. Возвращает dict или None при ошибке."""
     if not GIST_ID or not GITHUB_TOKEN:
         logger.error("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
-        raise RuntimeError("Ошибка конфигурации: отсутствуют GIST_ID или GITHUB_TOKEN")
+        return None
 
     url = f"https://api.github.com/gists/{GIST_ID}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-
     try:
         resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
@@ -72,18 +74,20 @@ def load_data():
                     try:
                         return json.loads(content)
                     except json.JSONDecodeError as e:
-                        # Передаём ошибку наверх — пусть обработчик решает, что делать
-                        raise e
-            # Файл data.json не найден в Gist
+                        logger.error(f"JSON decode error in Gist: {e}")
+                        return None
+            # Файл data.json не найден
             logger.warning("Файл data.json не найден в Gist")
             return {}
         else:
-            logger.error(f"❌ Не удалось загрузить данные из Gist: {resp.status_code} {resp.text}")
-            raise RuntimeError(f"Ошибка GitHub API: {resp.status_code}")
-
+            logger.error(f"GitHub API error: {resp.status_code} {resp.text}")
+            return None
     except requests.RequestException as e:
-        logger.error(f"Ошибка сети при загрузке данных из Gist: {e}")
-        raise RuntimeError("Ошибка подключения к GitHub Gist")
+        logger.error(f"Network error loading Gist: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in load_data: {e}")
+        return None
 
 def save_data(data):
     """Сохраняет данные в приватный Gist."""
@@ -119,6 +123,19 @@ def save_data(data):
     os.replace(temp_file, DATA_FILE)"""
 
 # === КОМАНДЫ АДМИНА ===
+def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
+    """Отправляет всем админам уведомление о проблеме с БД."""
+    message_to_admins = (
+        f"‼️ Пользователь {user_name} (ID={user_id}) пытается выполнить команду /{command}, "
+        f"но произошла ошибка при работе с Базой Данных!\n"
+        f"Подробнее об ошибке:\n{error_details}"
+    )
+    for admin_id in ADMIN_USER_ID:
+        try:
+            bot.send_message(admin_id, message_to_admins)
+        except Exception as e:
+            logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
     if str(message.from_user.id) not in ADMIN_USER_ID:
@@ -127,6 +144,10 @@ def jsonout_handler(message):
 
     try:
         data = load_data()
+        if data is None:
+            bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
+            notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
+            return
         if not data:
             bot.send_message(message.chat.id, "⚠️ База данных ещё не создана.")
             return
@@ -337,13 +358,13 @@ def start_handler(message):
         # 1. Читаем СВЕЖУЮ БД из Gist
         data = load_data()
 
-        if not data:
-            bot.send_message(message.chat.id, "⚠ База Данных повреждена! Обратитесь, пожалуйста, к администраторам.")
-            for admin in  ADMIN_USER_ID:
-                bot.send_message(admin, f"‼Пользователь {user_name}(id={message.chat.id}) пытается запустить бот, но База Данных повреждена!")
-            return
-
         # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
+
+        data = load_data()
+        if data is None:
+            bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
+            notify_admins_about_db_error(user_name, user_id, "start", "Ошибка загрузки данных из Gist")
+            return
 
         # 2. Если пользователь уже есть — выходим
         if user_id in data:
@@ -384,6 +405,11 @@ def start_handler(message):
 def task_handler(message):
     user_id = str(message.from_user.id)
     text = message.text[6:].strip()
+    data = load_data()
+    if data is None:
+        bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
+        notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
+        return
     if not text:
         bot.send_message(
             message.chat.id,
@@ -406,6 +432,11 @@ def task_handler(message):
 def task_text_input(msg):
     user_id = str(msg.from_user.id)
     text = msg.text.strip()
+    data = load_data()
+    if data is None:
+        bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
+        notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
+        return
     if not text:
         bot.send_message(msg.chat.id, "Текст не может быть пустым. Попробуй снова.")
         return
@@ -424,6 +455,11 @@ def task_text_input(msg):
 def datetime_input_handler(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
+    data = load_data()
+    if data is None:
+        bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
+        notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
+        return
     datetime_str = message.text.strip()
     try:
         task_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
