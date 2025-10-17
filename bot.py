@@ -358,7 +358,7 @@ def start_handler(message):
 
     for attempt in range(3):  # до 3 попыток при конфликте
         # 1. Читаем СВЕЖУЮ БД из Gist
-        data = load_data(message.from_user.name, message.from_user.id, "start")
+        data = load_data(user_name, message.from_user.id, "start")
 
         # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
@@ -400,6 +400,8 @@ def start_handler(message):
 @bot.message_handler(commands=["task"])
 def task_handler(message):
     user_id = str(message.from_user.id)
+    user_name = message.from_user.first_name or "Пользователь"
+    data = load_data(user_name, message.from_user.id, "task")
     text = message.text[6:].strip()
     if not text:
         bot.send_message(
@@ -422,6 +424,9 @@ def task_handler(message):
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_task_text)
 def task_text_input(msg):
     user_id = str(msg.from_user.id)
+    user_name = msg.from_user.first_name or "Пользователь"
+    data = load_data(user_name, user_id, "task")
+    user_id = str(msg.from_user.id)
     text = msg.text.strip()
     if not text:
         bot.send_message(msg.chat.id, "Текст не может быть пустым. Попробуй снова.")
@@ -440,6 +445,8 @@ def task_text_input(msg):
 @bot.message_handler(func=lambda message: str(message.from_user.id) in user_awaiting_datetime)
 def datetime_input_handler(message):
     user_id = str(message.from_user.id)
+    user_name = message.from_user.first_name or "Пользователь"
+    data = load_data(user_name, user_id, "task")
     chat_id = message.chat.id
     user_name = message.from_user.first_name or "Пользователь"
     datetime_str = message.text.strip()
