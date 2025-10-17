@@ -134,19 +134,21 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
     logger.error(error_details)
     for admin_id in ADMIN_USER_ID:
         try:
-            bot.send_message(admin_id, message_to_admins)
-            bot.send_message(user_id, "⚠ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
+            if user_name != "" and user_id != 0 and command != "":
+                bot.send_message(admin_id, message_to_admins)
+                bot.send_message(user_id, "⚠ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
         except Exception as e:
             logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
+    user_name = message.from_user.first_name or "Пользователь"
     if str(message.from_user.id) not in ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
 
     try:
-        data = load_data(message.from_user.name, message.from_user.id, commands[0])
+        data = load_data(user_name, message.from_user.id, commands[0])
         if not data:
             bot.send_message(message.chat.id, "⚠️ База данных ещё не создана.")
             return
@@ -188,6 +190,7 @@ def is_data_empty(data: dict) -> bool:
 
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
+    user_name = message.from_user.first_name or "Пользователь"
     if str(message.from_user.id) not in ADMIN_USER_ID:
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
@@ -375,7 +378,7 @@ def start_handler(message):
         save_data(data)
 
         # 5. Проверяем, что всё сохранилось
-        data_check = load_data(message.from_user.name, message.from_user.id, commands[0])
+        data_check = load_data(user_name, message.from_user.id, commands[0])
         if user_id in data_check:
             bot.send_message(
                 message.chat.id,
@@ -438,6 +441,7 @@ def task_text_input(msg):
 def datetime_input_handler(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
+    user_name = message.from_user.first_name or "Пользователь"
     datetime_str = message.text.strip()
     try:
         task_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
@@ -452,7 +456,7 @@ def datetime_input_handler(message):
         )
         return
     text = user_awaiting_datetime[user_id]
-    data = load_data(message.from_user.name, message.from_user.id, commands[0])
+    data = load_data(user_name, message.from_user.id, commands[0])
     if user_id not in data:
         bot.send_message(chat_id, "Сначала отправь /start")
         return
