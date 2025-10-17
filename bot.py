@@ -10,11 +10,27 @@ import time
 import os
 
 # === НАСТРОЙКИ ===
-WEBHOOK_URL = "https://tg-bot-daily-planner.onrender.com"
-TELEGRAM_BOT_TOKEN = "8396602686:AAFfOqaDehOGf7Y3iom_j6VNxEGEmyOxIgU"
+
+# === НАСТРОЙКИ (из переменных окружения) ===
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ADMIN_USER_ID_RAW = os.getenv("ADMIN_USER_ID") #в настройки: добавлять и удалять админов. Возможности админов и администрирования
+
+if not TELEGRAM_BOT_TOKEN:
+    raise RuntimeError("❌ Переменная окружения TELEGRAM_BOT_TOKEN не задана!")
+if not WEBHOOK_URL:
+    raise RuntimeError("❌ Переменная окружения WEBHOOK_URL не задана!")
+
+# Преобразуем ADMIN_USER_ID в список (поддерживаем несколько админов через запятую)
+if ADMIN_USER_ID_RAW:
+    # Убираем пробелы и разбиваем по запятым
+    ADMIN_USER_ID = [uid.strip() for uid in ADMIN_USER_ID_RAW.split(",") if uid.strip()]
+else:
+    ADMIN_USER_ID = []
+    logger.warning("⚠️ Переменная окружения ADMIN_USER_ID не задана. Админ-команды будут недоступны.")
+
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
-ADMIN_USER_ID = ["1287372767"] #в настройки: добавлять и удалять админов. Возможности админов и администрирования
 
 # Работа с гистом с гитхаба (переносим БД туда)
 GIST_ID = os.getenv("GIST_ID")
