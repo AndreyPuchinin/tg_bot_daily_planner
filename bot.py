@@ -616,7 +616,7 @@ def today_handler(message):
 
     user_id = str(message.from_user.id)
     try:
-        data = load_data()
+        data = load_data(message.from_user.first_name, message.from_user.id, "today")
     except Exception as e:
         logger.error(f"Ошибка загрузки БД в /today: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -644,7 +644,7 @@ def week_handler(message):
 
     user_id = str(message.from_user.id)
     try:
-        data = load_data()
+        data = load_data(message.from_user.first_name, message.from_user.id, "week")
     except Exception as e:
         logger.error(f"Ошибка загрузки БД в /week: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
