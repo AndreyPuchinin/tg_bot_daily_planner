@@ -325,7 +325,7 @@ def info_handler(message):
         text += "• /jsonin — загрузить новую БД из файла\n"
         text += "⚠️ Все операции с БД требуют корректного JSON-формата.\n"
 
-    bot.send_message(message.chat.id, text, parse_mode="HTML")
+    bot.send_message(message.chat.id, text)
 
 @bot.message_handler(commands=["start"])
 def start_handler(message):
