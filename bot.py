@@ -14,7 +14,7 @@ WEBHOOK_URL = "https://tg-bot-daily-planner.onrender.com"
 TELEGRAM_BOT_TOKEN = "8396602686:AAFfOqaDehOGf7Y3iom_j6VNxEGEmyOxIgU"
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
-ADMIN_USER_ID = "1287372767" #в настройки: добавлять и удалять админов. Возможности админов и администрирования
+ADMIN_USER_ID = ["1287372767"] #в настройки: добавлять и удалять админов. Возможности админов и администрирования
 
 # Работа с гистом с гитхаба (переносим БД туда)
 GIST_ID = os.getenv("GIST_ID")
@@ -121,7 +121,7 @@ def save_data(data):
 # === КОМАНДЫ АДМИНА ===
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
-    if str(message.from_user.id) != ADMIN_USER_ID:
+    if str(message.from_user.id) not in ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
 
@@ -168,7 +168,7 @@ def is_data_empty(data: dict) -> bool:
 
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
-    if str(message.from_user.id) != ADMIN_USER_ID:
+    if str(message.from_user.id) not in ADMIN_USER_ID:
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         except Exception as e:
@@ -308,7 +308,7 @@ def generate_example_datetime():
 @bot.message_handler(commands=["info"])
 def info_handler(message):
     user_id = str(message.from_user.id)
-    is_admin = (user_id == ADMIN_USER_ID)
+    is_admin = (user_id in ADMIN_USER_ID)
 
     text = "ℹ️ <b>Информация о боте «Ежедневник»</b>\n"
     text += "<b>Для всех пользователей (кроме админов, для них - свои доп.-команды):</b>\n"
@@ -336,6 +336,12 @@ def start_handler(message):
     for attempt in range(3):  # до 3 попыток при конфликте
         # 1. Читаем СВЕЖУЮ БД из Gist
         data = load_data()
+
+        if not data:
+            bot.send_message(message.chat.id, "⚠ База Данных повреждена! Обратитесь, пожалуйста, к администраторам.")
+            for admin in  ADMIN_USER_ID:
+                bot.send_message(admin, f"‼Пользователь {user_name}(id={message.chat.id}) пытается запустить бот, но База Данных повреждена!")
+            return
 
         # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
