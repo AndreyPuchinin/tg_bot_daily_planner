@@ -311,6 +311,8 @@ def universal_cancel_handler(call):
         in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
     elif action == "cancel_jsonin":
         in_mode = user_id in user_awaiting_json_file
+    elif action == "cancel_feedback":
+        in_node = user_id in user_awaiting_feedback
 
     if in_mode:
         # Выходим из режима
