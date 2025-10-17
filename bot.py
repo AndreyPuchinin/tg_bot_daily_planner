@@ -43,16 +43,18 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Состояния
+# Состояния режимов ввода команд
 user_awaiting_json_file = set()
 user_awaiting_task_text = {}
 user_awaiting_datetime = {}
 user_awaiting_feedback = set()
+user_awaiting_daytasks_date = set()
 
 CANCEL_ACTION_NAMES = {
     "cancel_task": "/task",
     "cancel_jsonin": "/jsonin",
-    "cancel_feedback": "/feedback"
+    "cancel_feedback": "/feedback",
+    "cancel_daytasks": "/daytasks"    
 }
 
 # Автоматически формируем множество допустимых callback_data-действий для отмены
@@ -368,7 +370,62 @@ def generate_example_datetime():
     )
     return example_dt.strftime("%Y-%m-%d %H:%M")
 
+def generate_today_datetime():
+    now = now_msk()
+    today = now.date()
+    example_dt = datetime.combine(today, datetime.min.time()).replace(
+        hour=now.hour, minute=now.minute
+    )
+    return example_dt.strftime("%Y-%m-%d %H:%M")
+
 # === ОСНОВНЫЕ КОМАНДЫ ПОЛЬЗОВАТЕЛЯ ===
+@bot.message_handler(commands=["start"])
+def start_handler(message):
+    user_id = str(message.from_user.id)
+    user_name = message.from_user.first_name or "Пользователь"
+
+    for attempt in range(3):  # до 3 попыток при конфликте
+        # 1. Читаем СВЕЖУЮ БД из Gist
+        data = load_data(user_name, message.from_user.id, "start")
+
+        # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
+
+        # 2. Если пользователь уже есть — выходим
+        if user_id in data:
+            bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
+            return
+
+        # 3. Добавляем пользователя
+        data[user_id] = {
+            "user_name": user_name,
+            "chat_id": str(message.chat.id),
+            "tasks": []
+        }
+
+        # 4. Сохраняем ВСЮ БД (включая новых пользователей)
+        save_data(data)
+
+        # 5. Проверяем, что всё сохранилось
+        data_check = load_data(user_name, message.from_user.id, "start")
+        if user_id in data_check:
+            bot.send_message(
+                message.chat.id,
+                f"Привет, {user_name}! 👋\n"
+                "Я — твой личный ежедневник в Telegram.\n"
+                "Используй команды:\n"
+                "/start - запустить бота\n"
+                "/task — добавить задачу\n"
+            )
+            notify_admins_about_new_user(user_name, user_id, str(message.chat.id))
+            return
+
+        # Если не сохранилось — повторяем цикл (возможно, кто-то перезаписал)
+        logger.warning(f"Попытка {attempt + 1}: пользователь {user_id} не сохранился в БД")
+
+    # Если все попытки провалились
+    bot.send_message(message.chat.id, "⚠️ Не удалось инициализировать профиль. Попробуйте позже.")
+    logger.error(f"❌ Не удалось инициализировать пользователя {user_id} после 3 попыток")
+
 @bot.message_handler(commands=["info"])
 def info_handler(message):
     user_id = str(message.from_user.id)
@@ -446,52 +503,103 @@ def handle_feedback_message(msg):
     # Выходим из режима ожидания
     user_awaiting_feedback.discard(user_id)
 
-@bot.message_handler(commands=["start"])
-def start_handler(message):
+@bot.message_handler(commands=["daytasks"])
+def daytasks_handler(message):
     user_id = str(message.from_user.id)
-    user_name = message.from_user.first_name or "Пользователь"
+    example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
+    bot.send_message(
+        message.chat.id,
+        f"Введите дату в формате: ГГГГ-ММ-ДД\n"
+        f"Пример: {example}",
+        reply_markup=make_cancel_button("cancel_daytasks")
+    )
+    user_awaiting_daytasks_date.add(user_id)
 
-    for attempt in range(3):  # до 3 попыток при конфликте
-        # 1. Читаем СВЕЖУЮ БД из Gist
-        data = load_data(user_name, message.from_user.id, "start")
+@bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_daytasks_date)
+def handle_daytasks_date_input(msg):
+    user_id = str(msg.from_user.id)
+    chat_id = msg.chat.id
+    date_str = msg.text.strip()
 
-        # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
+    # Удаляем из режима ожидания сразу
+    user_awaiting_daytasks_date.discard(user_id)
 
-        # 2. Если пользователь уже есть — выходим
-        if user_id in data:
-            bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
-            return
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        bot.send_message(
+            chat_id,
+            "❌ Неверный формат даты.\n"
+            "Используй: ГГГГ-ММ-ДД\n"
+            generate_today_datetime(),
+            reply_markup=make_cancel_button("cancel_daytasks")
+        )
+        user_awaiting_daytasks_date.add(user_id)  # вернуть в режим
+        return
 
-        # 3. Добавляем пользователя
-        data[user_id] = {
-            "user_name": user_name,
-            "chat_id": str(message.chat.id),
-            "tasks": []
-        }
+    # Загружаем данные
+    try:
+        data = load_data()
+    except Exception as e:
+        logger.error(f"Ошибка загрузки БД в /daytasks: {e}")
+        bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
+        return
 
-        # 4. Сохраняем ВСЮ БД (включая новых пользователей)
-        save_data(data)
+    if user_id not in data:
+        bot.send_message(chat_id, "Сначала отправьте /start")
+        return
 
-        # 5. Проверяем, что всё сохранилось
-        data_check = load_data(user_name, message.from_user.id, "start")
-        if user_id in data_check:
-            bot.send_message(
-                message.chat.id,
-                f"Привет, {user_name}! 👋\n"
-                "Я — твой личный ежедневник в Telegram.\n"
-                "Используй команды:\n"
-                "/start - запустить бота\n"
-                "/task — добавить задачу\n"
-            )
-            notify_admins_about_new_user(user_name, user_id, str(message.chat.id))
-            return
+    # Ищем задачи на эту дату
+    tasks_on_date = []
+    for task in data[user_id]["tasks"]:
+        if task.get("status") == "completed":
+            continue
+        try:
+            task_dt = datetime.fromisoformat(task["datetime"])
+            if task_dt.date() == target_date:
+                formatted_time = task_dt.strftime("%H:%M")
+                tasks_on_date.append(f"• {task['text']} ({formatted_time})")
+        except (ValueError, KeyError):
+            continue
 
-        # Если не сохранилось — повторяем цикл (возможно, кто-то перезаписал)
-        logger.warning(f"Попытка {attempt + 1}: пользователь {user_id} не сохранился в БД")
+    if not tasks_on_date:
+        bot.send_message(chat_id, f"📅 На {date_str} нет запланированных задач.")
+    else:
+        header = f"📋 Задачи на {date_str}:\n\n"
+        full_message = header + "\n\n".join(tasks_on_date)
+        send_long_message(bot, chat_id, full_message)
 
-    # Если все попытки провалились
-    bot.send_message(message.chat.id, "⚠️ Не удалось инициализировать профиль. Попробуйте позже.")
-    logger.error(f"❌ Не удалось инициализировать пользователя {user_id} после 3 попыток")
+@bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
+def universal_cancel_handler(call):
+    user_id = str(call.from_user.id)
+    action = call.data
+    command_name = CANCEL_ACTION_NAMES[action]
+
+    in_mode = False
+    if action == "cancel_task":
+        in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
+    elif action == "cancel_jsonin":
+        in_mode = user_id in user_awaiting_json_file
+    elif action == "cancel_daytasks":
+        in_mode = user_id in user_awaiting_daytasks_date  # ← новая строка
+
+    if in_mode:
+        if action == "cancel_task":
+            user_awaiting_task_text.pop(user_id, None)
+            user_awaiting_datetime.pop(user_id, None)
+        elif action == "cancel_jsonin":
+            user_awaiting_json_file.discard(user_id)
+        elif action == "cancel_daytasks":
+            user_awaiting_daytasks_date.discard(user_id)  # ← новая строка
+
+        bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
+        bot.answer_callback_query(call.id)
+    else:
+        bot.answer_callback_query(
+            call.id,
+            f"Режим ввода команды {command_name} уже был отменён!",
+            show_alert=False
+        ) 
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
