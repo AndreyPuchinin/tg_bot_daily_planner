@@ -782,10 +782,10 @@ def handle_weekbydate_input(msg):
     full_message = "\n".join(lines).strip()
     if not full_message:
         full_message = "На эту неделю задач нет."
-        send_long_message(bot, chat_id, full_message, parse_mode="HTML")
+        send_long_message(bot, chat_id, full_message)
         return
 
-    send_long_message(bot, chat_id, full_message)
+    send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
