@@ -665,7 +665,7 @@ def week_handler(message):
 
     lines = []
     for i, day in enumerate(week_days):
-         weekday_abbr = weekdays_ru[day.weekday()] 
+        weekday_abbr = weekdays_ru[day.weekday()] 
         date_str = day.strftime("%d.%m.%Y")
         tasks = get_tasks_on_date(data, user_id, day)
 
