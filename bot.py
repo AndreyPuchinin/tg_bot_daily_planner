@@ -771,7 +771,7 @@ def handle_weekbydate_input(msg):
             except (ValueError, KeyError):
                 continue
 
-        lines.append(f"{weekday_abbr} {date_str_fmt}")
+        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
         if tasks:
             lines.append("\n".join(tasks))
         else:
@@ -782,6 +782,8 @@ def handle_weekbydate_input(msg):
     full_message = "\n".join(lines).strip()
     if not full_message:
         full_message = "На эту неделю задач нет."
+        send_long_message(bot, chat_id, full_message, parse_mode="HTML")
+        return
 
     send_long_message(bot, chat_id, full_message)
 
