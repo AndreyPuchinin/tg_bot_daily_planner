@@ -387,8 +387,8 @@ def generate_today_datetime():
 def start_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
-    if user_id != message.chat.id:
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
         return
 
     for attempt in range(3):  # до 3 попыток при конфликте
@@ -436,8 +436,8 @@ def start_handler(message):
 @bot.message_handler(commands=["info"])
 def info_handler(message):
     user_id = str(message.from_user.id)
-    if user_id != message.chat.id:
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
         return
     is_admin = (user_id in ADMIN_USER_ID)
 
@@ -468,8 +468,8 @@ def info_handler(message):
 @bot.message_handler(commands=["feedback"])
 def feedback_handler(message):
     user_id = str(message.from_user.id)
-    if user_id != message.chat.id:
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
         return
     bot.send_message(
         message.chat.id,
@@ -521,8 +521,8 @@ def handle_feedback_message(msg):
 @bot.message_handler(commands=["daytasks"])
 def daytasks_handler(message):
     user_id = str(message.from_user.id)
-    if user_id != message.chat.id:
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
         return
     example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
     bot.send_message(
@@ -592,8 +592,8 @@ def handle_daytasks_date_input(msg):
 @bot.message_handler(commands=["task"])
 def task_handler(message):
     user_id = str(message.from_user.id)
-    if user_id != message.chat.id:
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
         return
     user_name = message.from_user.first_name or "Пользователь"
     data = load_data(user_name, message.from_user.id, "task")
