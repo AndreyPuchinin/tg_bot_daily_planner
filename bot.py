@@ -400,9 +400,17 @@ def get_tasks_on_date(data: dict, user_id: str, target_date: datetime.date) -> l
 def stop_command_in_group(chat_id, user_name):
     bot.send_message(chat_id, f"⚠️ Извините, <b>{user_name}</b>, бот не работает в группах!", parse_mode="HTML")
 
-def generate_today_datetime():
+def generate_today_date():
     now = now_msk()
     today = now.date()
+    example_dt = datetime.combine(today, datetime.min.time()).replace(
+        hour=now.hour, minute=now.minute
+    )
+    return example_dt.strftime("%Y-%m-%d %H:%M")
+
+def generate_next_week_date():
+    now = now_msk()
+    next_week = now.date()+7
     example_dt = datetime.combine(today, datetime.min.time()).replace(
         hour=now.hour, minute=now.minute
     )
@@ -577,7 +585,7 @@ def handle_daytasks_date_input(msg):
     except ValueError:
         text = "❌ Неверный формат даты.\n"
         text += "Используй: ГГГГ-ММ-ДД\n"
-        text += generate_today_datetime()
+        text += generate_today_date()
         bot.send_message(
             chat_id,
             text,
@@ -712,6 +720,7 @@ def weekbydate_handler(message):
 def handle_weekbydate_input(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
+    user_name = msg.from_user.first_name
     date_str = msg.text.strip()
 
     # Удаляем из режима сразу
@@ -724,7 +733,7 @@ def handle_weekbydate_input(msg):
             chat_id,
             "❌ Неверный формат даты.\n"
             "Используй: ГГГГ-ММ-ДД\n"
-            "Пример: 2025-10-17",
+            "Пример:"+generate_next_week_date(),
             reply_markup=make_cancel_button("cancel_weekbydate")
         )
         user_awaiting_weekbydate_input.add(user_id)  # вернуть в режим
@@ -740,7 +749,7 @@ def handle_weekbydate_input(msg):
 
     # Загружаем данные
     try:
-        data = load_data(user_name, message.from_user.id, "weekbydate")
+        data = load_data(user_name, user_id, "weekbydate")
     except Exception as e:
         logger.error(f"Ошибка загрузки БД в /weekbydate: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
