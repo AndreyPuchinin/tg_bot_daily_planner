@@ -134,6 +134,14 @@ def jsonout_handler(message):
             visible_file_name="data.json",
             caption="📁 Текущая база данных"
         )
+    except json.JSONDecodeError as e:
+        error_details = f"❌ Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
+        logger.error(f"❌ Ошибка разбора JSON из Gist: {error_details}")
+        bot.send_message(
+            message.chat.id,
+            f"⚠️ База данных повреждена: файл не является валидным JSON.\nПодробности:\n```\n{error_details}\n```",
+            parse_mode="Markdown"
+        )
     except Exception as e:
         logger.error(f"Ошибка в /jsonout: {e}")
         bot.send_message(message.chat.id, f"❌ Ошибка при отправке файла: {e}")
@@ -297,7 +305,7 @@ def start_handler(message):
         # 1. Читаем СВЕЖУЮ БД из Gist
         data = load_data()
 
-        bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
+        # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
         # 2. Если пользователь уже есть — выходим
         if user_id in data:
