@@ -74,19 +74,20 @@ def load_data():
                     try:
                         return json.loads(content)
                     except json.JSONDecodeError as e:
-                        logger.error(f"JSON decode error in Gist: {e}")
+                        notify_admins_about_db_error(user_name, user_id, cmd, f"JSON decode error in Gist: {e}")
                         return None
             # Файл data.json не найден
-            logger.warning("Файл data.json не найден в Gist")
-            return {}
+            notify_admins_about_db_error(user_name, user_id, cmd, "Файл data.json не найден в Gist")
+            return None
         else:
-            logger.error(f"GitHub API error: {resp.status_code} {resp.text}")
+
+            notify_admins_about_db_error(user_name, user_id, cmd, f"GitHub API error: {resp.status_code} {resp.text}")
             return None
     except requests.RequestException as e:
-        logger.error(f"Network error loading Gist: {e}")
+        notify_admins_about_db_error(user_name, user_id, cmd, f"Network error loading Gist: {e}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error in load_data: {e}")
+        notify_admins_about_db_error(user_name, user_id, cmd, f"Unexpected error in load_data: {e}")
         return None
 
 def save_data(data):
@@ -130,9 +131,11 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
         f"но произошла ошибка при работе с Базой Данных!\n"
         f"Подробнее об ошибке:\n{error_details}"
     )
+    logger.error(error_details)
     for admin_id in ADMIN_USER_ID:
         try:
             bot.send_message(admin_id, message_to_admins)
+            bot.send_message(user_id, "⚠ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
         except Exception as e:
             logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
@@ -144,10 +147,6 @@ def jsonout_handler(message):
 
     try:
         data = load_data()
-        if data is None:
-            bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
-            notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
-            return
         if not data:
             bot.send_message(message.chat.id, "⚠️ База данных ещё не создана.")
             return
@@ -360,12 +359,6 @@ def start_handler(message):
 
         # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
-        data = load_data()
-        if data is None:
-            bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
-            notify_admins_about_db_error(user_name, user_id, "start", "Ошибка загрузки данных из Gist")
-            return
-
         # 2. Если пользователь уже есть — выходим
         if user_id in data:
             bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
@@ -405,11 +398,6 @@ def start_handler(message):
 def task_handler(message):
     user_id = str(message.from_user.id)
     text = message.text[6:].strip()
-    data = load_data()
-    if data is None:
-        bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
-        notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
-        return
     if not text:
         bot.send_message(
             message.chat.id,
@@ -432,11 +420,6 @@ def task_handler(message):
 def task_text_input(msg):
     user_id = str(msg.from_user.id)
     text = msg.text.strip()
-    data = load_data()
-    if data is None:
-        bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
-        notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
-        return
     if not text:
         bot.send_message(msg.chat.id, "Текст не может быть пустым. Попробуй снова.")
         return
@@ -455,11 +438,6 @@ def task_text_input(msg):
 def datetime_input_handler(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
-    data = load_data()
-    if data is None:
-        bot.send_message(message.chat.id, USER_DB_ERROR_MESSAGE)
-        notify_admins_about_db_error(user_name, user_id, "jsonout", "Ошибка загрузки данных из Gist")
-        return
     datetime_str = message.text.strip()
     try:
         task_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
