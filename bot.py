@@ -374,6 +374,23 @@ def generate_example_datetime():
     )
     return example_dt.strftime("%Y-%m-%d %H:%M")
 
+def get_tasks_on_date(data: dict, user_id: str, target_date: datetime.date) -> list:
+    """Возвращает список строк с задачами на указанную дату."""
+    tasks_on_date = []
+    if user_id not in data:
+        return tasks_on_date
+    for task in data[user_id]["tasks"]:
+        if task.get("status") == "completed":
+            continue
+        try:
+            task_dt = datetime.fromisoformat(task["datetime"])
+            if task_dt.date() == target_date:
+                formatted_time = task_dt.strftime("%H:%M")
+                tasks_on_date.append(f"• {task['text']} ({formatted_time})")
+        except (ValueError, KeyError):
+            continue
+    return tasks_on_date
+
 def generate_today_datetime():
     now = now_msk()
     today = now.date()
@@ -453,6 +470,8 @@ def info_handler(message):
     text += "  – <i>или за 12 часов до начала.</i>\n"
     text += "  – <i>позже можно будет настраивать.</i>\n"
     text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n\n"
+    text += "• /today — показать задачи на сегодня\n"
+    text += "• /week — показать задачи на текущую неделю\n"
     text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~2 минут).</i>\n"
     text += "<i>• Также иногда могут быть проблемы с Базой Данных при обновлениях.</i>\n"
     text += "<i>• В этом случае вы можете связаться с админами или просто подождать. При любых действиях, вызывающих ошибку, информация передается админам автоматически.</i>\n\n"
@@ -589,6 +608,81 @@ def handle_daytasks_date_input(msg):
         full_message = header + "\n\n".join(tasks_on_date)
         send_long_message(bot, chat_id, full_message)
 
+@bot.message_handler(commands=["today"])
+def today_handler(message):
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        return
+
+    user_id = str(message.from_user.id)
+    try:
+        data = load_data()
+    except Exception as e:
+        logger.error(f"Ошибка загрузки БД в /today: {e}")
+        bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
+        return
+
+    if user_id not in data:
+        bot.send_message(message.chat.id, "Сначала отправьте /start")
+        return
+
+    today = now_msk().date()
+    tasks = get_tasks_on_date(data, user_id, today)
+
+    if not tasks:
+        bot.send_message(message.chat.id, f"📅 На сегодня ({today.strftime('%d.%m.%Y')}) нет запланированных задач.")
+    else:
+        header = f"📋 Задачи на сегодня ({today.strftime('%d.%m.%Y')}):\n\n"
+        full_message = header + "\n\n".join(tasks)
+        send_long_message(bot, message.chat.id, full_message)
+
+@bot.message_handler(commands=["week"])
+def week_handler(message):
+    if message.chat.type != "private":
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        return
+
+    user_id = str(message.from_user.id)
+    try:
+        data = load_data()
+    except Exception as e:
+        logger.error(f"Ошибка загрузки БД в /week: {e}")
+        bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
+        return
+
+    if user_id not in data:
+        bot.send_message(message.chat.id, "Сначала отправьте /start")
+        return
+
+    now = now_msk()
+    today = now.date()
+    # В Python: понедельник = 0, воскресенье = 6
+    days_until_sunday = 6 - today.weekday()  # сколько дней до воскресенья (включая сегодня)
+    week_days = [today + timedelta(days=i) for i in range(days_until_sunday + 1)]
+
+    # Словарь: день недели → русская аббревиатура
+    weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
+
+    lines = []
+    for i, day in enumerate(week_days):
+        weekday_abbr = weekdays_ru[i]
+        date_str = day.strftime("%d.%m.%Y")
+        tasks = get_tasks_on_date(data, user_id, day)
+
+        lines.append(f"{weekday_abbr} {date_str}")
+        if tasks:
+            lines.append("\n".join(tasks))
+        else:
+            lines.append("Нет задач")
+        lines.append("")  # одна пустая строка после каждого дня
+        lines.append("")  # вторая пустая строка → как в примере
+
+    full_message = "\n".join(lines).strip()
+    if not full_message:
+        full_message = "На ближайшую неделю задач нет."
+
+    send_long_message(bot, message.chat.id, full_message)
+
 @bot.message_handler(commands=["task"])
 def task_handler(message):
     user_id = str(message.from_user.id)
@@ -705,7 +799,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     lines = []
     for task in tasks_to_remind:
         dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
-        lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
+        lines.append(f"Напоминаю!\n\n🔔 {task['text']}\n📅 {dt_str}")
         task["reminded"] = True
     save_data(data)
     send_long_message(bot, chat_id, "\n\n".join(lines).strip())
