@@ -408,14 +408,6 @@ def generate_today_date():
     )
     return example_dt.strftime("%Y-%m-%d %H:%M")
 
-def generate_next_week_date():
-    now = now_msk()
-    next_week = now.date()+7
-    example_dt = datetime.combine(today, datetime.min.time()).replace(
-        hour=now.hour, minute=now.minute
-    )
-    return example_dt.strftime("%Y-%m-%d %H:%M")
-
 # === ОСНОВНЫЕ КОМАНДЫ ПОЛЬЗОВАТЕЛЯ ===
 @bot.message_handler(commands=["start"])
 def start_handler(message):
@@ -729,11 +721,12 @@ def handle_weekbydate_input(msg):
     try:
         target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
+        example = now_msk().strftime("%Y-%m-%d")
         bot.send_message(
             chat_id,
             "❌ Неверный формат даты.\n"
             "Используй: ГГГГ-ММ-ДД\n"
-            "Пример:"+generate_next_week_date(),
+            "Пример: {example}",
             reply_markup=make_cancel_button("cancel_weekbydate")
         )
         user_awaiting_weekbydate_input.add(user_id)  # вернуть в режим
