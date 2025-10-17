@@ -190,9 +190,9 @@ def jsonout_handler(message):
         data = load_data(user_name, message.from_user.id, "jsonout")
         text = ""
         if not data:
-            text += "⚠️ База данных ещё не создана."
+            text += "⚠️ База данных ещё не создана.\n"
         elif is_data_empty(data):
-            text += "⚠️ База данных существует, но пока пуста."
+            text += "⚠️ База данных существует, но пока пуста.\n"
 
         text += "📁 Текущая база данных"
         json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
@@ -237,41 +237,26 @@ def jsonin_handler(message):
             logger.error(f"❌Не удалось отправить сообщение: {e}")
         return
 
-    main_msg = "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота."
+    main_msg = "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.\n"
 
     # Загружаем текущую БД из Gist
     try:
         data = load_data(user_name, message.from_user.id, "jsonin")
         if not data:
-            bot.send_message(
-                message.chat.id,
-                main_msg + "\n⚠️ База данных ещё не создана.",
-                reply_markup=make_cancel_button("cancel_jsonin")
-            )
+            main_msg += "⚠️ База данных ещё не создана.\n"
         elif is_data_empty(data):
-            main_msg += "\n⚠️ База данных существует, но пока пуста."
-            # Отправляем текущую БД как файл, даже если она пуста
-            # (ведь там могут быть айдишники юзеров...)
-            main_msg += "\n📁 Текущая база данных:"
-            json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-            bot.send_document(
-                message.chat.id,
-                document=BytesIO(json_bytes),
-                visible_file_name="data.json",
-                caption=main_msg, 
-                reply_markup=make_cancel_button("cancel_jsonin")
-            )
-        else:
-            # Отправляем текущую БД как файл, даже если она пуста
-            # (ведь там могут быть айдишники юзеров...)
-            json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-            bot.send_document(
-                message.chat.id,
-                document=BytesIO(json_bytes),
-                visible_file_name="data.json",
-                caption=main_msg + "\n📁 Текущая база данных:",
-                reply_markup=make_cancel_button("cancel_jsonin")
-            )
+            main_msg += "⚠️ База данных существует, но пока пуста.\n"
+        # Отправляем текущую БД как файл, даже если она пуста
+        # (ведь там могут быть айдишники юзеров...)
+        main_msg += "📁 Текущая база данных:"
+        json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+        bot.send_document(
+            message.chat.id,
+            document=BytesIO(json_bytes),
+            visible_file_name="data.json",
+            caption=main_msg, 
+            reply_markup=make_cancel_button("cancel_jsonin")
+        )
     except Exception as e:
         logger.error(f"❌Ошибка при чтении БД в /jsonin: {e}")
         bot.send_message(
