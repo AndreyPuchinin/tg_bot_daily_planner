@@ -148,7 +148,7 @@ def jsonout_handler(message):
         return
 
     try:
-        data = load_data(user_name, message.from_user.id, commands[0])
+        data = load_data(user_name, message.from_user.id, "jsonout")
         if not data:
             bot.send_message(message.chat.id, "⚠️ База данных ещё не создана.")
             return
@@ -202,7 +202,7 @@ def jsonin_handler(message):
 
     # Загружаем текущую БД из Gist
     try:
-        data = load_data(message.from_user.name, message.from_user.id, commands[0])
+        data = load_data(message.from_user.name, message.from_user.id, "jsonin")
         if not data:
             bot.send_message(
                 message.chat.id,
@@ -358,7 +358,7 @@ def start_handler(message):
 
     for attempt in range(3):  # до 3 попыток при конфликте
         # 1. Читаем СВЕЖУЮ БД из Gist
-        data = load_data(message.from_user.name, message.from_user.id, commands[0])
+        data = load_data(message.from_user.name, message.from_user.id, "start")
 
         # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
@@ -378,7 +378,7 @@ def start_handler(message):
         save_data(data)
 
         # 5. Проверяем, что всё сохранилось
-        data_check = load_data(user_name, message.from_user.id, commands[0])
+        data_check = load_data(user_name, message.from_user.id, "start")
         if user_id in data_check:
             bot.send_message(
                 message.chat.id,
@@ -456,7 +456,7 @@ def datetime_input_handler(message):
         )
         return
     text = user_awaiting_datetime[user_id]
-    data = load_data(user_name, message.from_user.id, commands[0])
+    data = load_data(user_name, message.from_user.id, "task")
     if user_id not in data:
         bot.send_message(chat_id, "Сначала отправь /start")
         return
