@@ -6,6 +6,7 @@ import logging
 import telebot
 import requests
 import json
+import html
 import time
 import os
 
@@ -769,14 +770,15 @@ def handle_weekbydate_input(msg):
             try:
                 task_dt = datetime.fromisoformat(task["datetime"])
                 if task_dt.date() == day:
-                    tasks.append(f"• {task['text']} ({task_dt.strftime('%H:%M')})")
+                    safe_text = html.escape(task['text'])
+                    tasks.append(f"• {safe_text} ({task_dt.strftime('%H:%M')})")
                     has_any_task = True
             except (ValueError, KeyError):
                 continue
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
         lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
-        lines.append("\n".join(tasks) if tasks else "Нет задач")
+        lines.append("\n".join(tasks) if tasks else "• Нет задач")
         lines.append("")  # пустая строка между днями
 
     if not has_any_task:
