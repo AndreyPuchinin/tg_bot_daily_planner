@@ -657,7 +657,7 @@ def week_handler(message):
     now = now_msk()
     today = now.date()
     # В Python: понедельник = 0, воскресенье = 6
-    days_until_sunday = today.weekday() - 6 # сколько дней до воскресенья (включая сегодня)
+    days_until_sunday = 6 - today.weekday()  # сколько дней до воскресенья (включая сегодня)
     week_days = [today + timedelta(days=i) for i in range(days_until_sunday + 1)]
 
     # Словарь: день недели → русская аббревиатура
@@ -665,7 +665,7 @@ def week_handler(message):
 
     lines = []
     for i, day in enumerate(week_days):
-        weekday_abbr = weekdays_ru[i]
+        weekday_abbr = weekdays_ru[i + days_until_sunday]
         date_str = day.strftime("%d.%m.%Y")
         tasks = get_tasks_on_date(data, user_id, day)
 
