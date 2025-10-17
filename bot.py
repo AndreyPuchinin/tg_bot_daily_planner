@@ -442,14 +442,7 @@ def start_handler(message):
         # 5. Проверяем, что всё сохранилось
         data_check = load_data(user_name, message.from_user.id, "start")
         if user_id in data_check:
-            bot.send_message(
-                message.chat.id,
-                f"Привет, {user_name}! 👋\n"
-                "Я — твой личный ежедневник в Telegram.\n"
-                "Используй команды:\n"
-                "/start - запустить бота\n"
-                "/task — добавить задачу\n"
-            )
+            info_handler(message)
             notify_admins_about_new_user(user_name, user_id, str(message.chat.id))
             return
 
