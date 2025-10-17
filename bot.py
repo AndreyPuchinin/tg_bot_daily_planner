@@ -54,7 +54,7 @@ def make_cancel_button(callback_data: str = "cancel_task") -> telebot.types.Inli
     return markup
 
 # === РАБОТА С ФАЙЛАМИ ===
-def load_data():
+def load_data(user_id: int):
     """Загружает данные из приватного Gist. Возвращает dict или None при ошибке."""
     if not GIST_ID or not GITHUB_TOKEN:
         logger.error("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
@@ -146,7 +146,7 @@ def jsonout_handler(message):
         return
 
     try:
-        data = load_data()
+        data = load_data(message.from_user.id)
         if not data:
             bot.send_message(message.chat.id, "⚠️ База данных ещё не создана.")
             return
@@ -199,7 +199,7 @@ def jsonin_handler(message):
 
     # Загружаем текущую БД из Gist
     try:
-        data = load_data()
+        data = load_data(message.from_user.id)
         if not data:
             bot.send_message(
                 message.chat.id,
@@ -355,7 +355,7 @@ def start_handler(message):
 
     for attempt in range(3):  # до 3 попыток при конфликте
         # 1. Читаем СВЕЖУЮ БД из Gist
-        data = load_data()
+        data = load_data(message.from_user.id)
 
         # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
@@ -375,7 +375,7 @@ def start_handler(message):
         save_data(data)
 
         # 5. Проверяем, что всё сохранилось
-        data_check = load_data()
+        data_check = load_data(message.from_user.id)
         if user_id in data_check:
             bot.send_message(
                 message.chat.id,
@@ -452,7 +452,7 @@ def datetime_input_handler(message):
         )
         return
     text = user_awaiting_datetime[user_id]
-    data = load_data()
+    data = load_data(message.from_user.id)
     if user_id not in data:
         bot.send_message(chat_id, "Сначала отправь /start")
         return
@@ -501,7 +501,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
 def reminder_daemon():
     while True:
         try:
-            data = load_data()
+            data = load_data(message.from_user.id)
             for user_id, user_data in data.items():
                 check_and_send_reminders(bot, user_id, user_id, data)
         except Exception as e:
