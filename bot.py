@@ -55,9 +55,11 @@ def load_data():
     """Загружает данные из приватного Gist."""
     if not GIST_ID or not GITHUB_TOKEN:
         logger.error("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
-        return {}
+        raise RuntimeError("Ошибка конфигурации: отсутствуют GIST_ID или GITHUB_TOKEN")
+
     url = f"https://api.github.com/gists/{GIST_ID}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+
     try:
         resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
@@ -67,14 +69,21 @@ def load_data():
                     content = file_info["content"]
                     if not content.strip():
                         return {}
-                    return json.loads(content)
-        logger.error(f"❌Не удалось загрузить данные из Gist: {resp.status_code} {resp.text}")
-    except json.JSONDecodeError as e:
-        logger.error(f"❌Ошибка разбора JSON из Gist: {e}")
-        return {}
-    except Exception as e:
-        logger.error(f"Ошибка при загрузке данных из Gist: {e}")
-    return {}
+                    try:
+                        return json.loads(content)
+                    except json.JSONDecodeError as e:
+                        # Передаём ошибку наверх — пусть обработчик решает, что делать
+                        raise e
+            # Файл data.json не найден в Gist
+            logger.warning("Файл data.json не найден в Gist")
+            return {}
+        else:
+            logger.error(f"❌ Не удалось загрузить данные из Gist: {resp.status_code} {resp.text}")
+            raise RuntimeError(f"Ошибка GitHub API: {resp.status_code}")
+
+    except requests.RequestException as e:
+        logger.error(f"Ошибка сети при загрузке данных из Gist: {e}")
+        raise RuntimeError("Ошибка подключения к GitHub Gist")
 
 def save_data(data):
     """Сохраняет данные в приватный Gist."""
@@ -117,16 +126,14 @@ def jsonout_handler(message):
         return
 
     try:
-        data = load_data()  # ← теперь из Gist
+        data = load_data()
         if not data:
-            bot.send_message(message.chat.id, "⚠️ База данных еще не создана.")
+            bot.send_message(message.chat.id, "⚠️ База данных ещё не создана.")
             return
         elif is_data_empty(data):
-            bot.send_message(
-                message.chat.id,
-                "\n⚠️ База данных существует, но пока пуста."
-            )
+            bot.send_message(message.chat.id, "⚠️ База данных существует, но пока пуста.")
             return
+
         json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
         bot.send_document(
             message.chat.id,
@@ -134,17 +141,19 @@ def jsonout_handler(message):
             visible_file_name="data.json",
             caption="📁 Текущая база данных"
         )
+
     except json.JSONDecodeError as e:
-        error_details = f"❌ Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
+        error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
         logger.error(f"❌ Ошибка разбора JSON из Gist: {error_details}")
         bot.send_message(
             message.chat.id,
             f"⚠️ База данных повреждена: файл не является валидным JSON.\nПодробности:\n```\n{error_details}\n```",
             parse_mode="Markdown"
         )
+
     except Exception as e:
-        logger.error(f"Ошибка в /jsonout: {e}")
-        bot.send_message(message.chat.id, f"❌ Ошибка при отправке файла: {e}")
+        logger.error(f"❌ Ошибка в /jsonout: {e}")
+        bot.send_message(message.chat.id, f"❌ Не удалось получить базу данных: {e}")
 
 # Проверка БД на пустоту по смыслу (json с содержимым, но без задач)
 def is_data_empty(data: dict) -> bool:
