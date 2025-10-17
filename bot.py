@@ -49,12 +49,14 @@ user_awaiting_task_text = {}
 user_awaiting_datetime = {}
 user_awaiting_feedback = set()
 user_awaiting_daytasks_date = set()
+user_awaiting_weekbydate_input = set()
 
 CANCEL_ACTION_NAMES = {
     "cancel_task": "/task",
     "cancel_jsonin": "/jsonin",
     "cancel_feedback": "/feedback",
-    "cancel_daytasks": "/daytasks"    
+    "cancel_daytasks": "/daytasks",
+    "cancel_weekbydate": "/weekbydate"
 }
 
 # Автоматически формируем множество допустимых callback_data-действий для отмены
@@ -147,21 +149,21 @@ def save_data(data):
 def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
     """Отправляет всем админам уведомление о регистрации нового пользователя."""
     message_to_admins = (
-        f"🆕 Новый пользователь зарегистрировался в боте!\n"
-        f"Имя: {user_name}\n"
-        f"ID: {user_id}\n"
-        f"Chat ID: {chat_id}"
+        f"🆕 Новый пользователь зарегистрировался в боте!\n\n"
+        f"<b>Имя: <i>{user_name}</i></b>\n"
+        f"<b>ID:</b> <i>{user_id}</i>\n"
+        f"<b>Chat ID:</b> <i>{chat_id}</i>"
     )
     for admin_id in ADMIN_USER_ID:
         try:
-            bot.send_message(admin_id, message_to_admins)
+            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
         except Exception as e:
             logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     """Отправляет всем админам уведомление о проблеме с БД."""
     message_to_admins = (
-        f"‼️ Пользователь {user_name} (ID={user_id}) пытается выполнить команду /{command}, "
+        f"‼️ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
         f"но произошла ошибка при работе с Базой Данных!\n"
         f"Подробнее об ошибке:\n{error_details}"
     )
@@ -169,7 +171,7 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
     for admin_id in ADMIN_USER_ID:
         try:
             if user_name != "" and user_id != 0 and command != "":
-                bot.send_message(admin_id, message_to_admins)
+                bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
                 bot.send_message(user_id, "⚠ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
                 # Отправляем сообщение об отмене нужного режима ввода в чат (не редактируем старое!)
                 bot.send_message(call.message.chat.id, f"❌ Режим ввода /{command} отменён.")
@@ -333,6 +335,8 @@ def universal_cancel_handler(call):
         in_mode = user_id in user_awaiting_feedback
     elif action == "cancel_daytasks":
         in_mode = user_id in user_awaiting_daytasks_date
+    elif action == "cancel_weekbydate":
+        in_mode = user_id in user_awaiting_weekbydate_input
 
     if in_mode:
         # Выходим из режима
@@ -345,6 +349,8 @@ def universal_cancel_handler(call):
             user_awaiting_feedback.discard(user_id)
         elif action == "cancel_daytasks":
             user_awaiting_daytasks_date.discard(user_id)
+        elif action == "cancel_weekbydate":
+            user_awaiting_weekbydate_input.discard(user_id)
 
         # Отправляем сообщение в чат (не редактируем старое!)
         bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
@@ -391,6 +397,9 @@ def get_tasks_on_date(data: dict, user_id: str, target_date: datetime.date) -> l
             continue
     return tasks_on_date
 
+def stop_command_in_group(user_name):
+    bot.send_message(message.chat.id, f"⚠️ Извините, <b>{user_name}</b>, бот не работает в группах!", parse_mode="HTML")
+
 def generate_today_datetime():
     now = now_msk()
     today = now.date()
@@ -405,7 +414,7 @@ def start_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
     if message.chat.type != "private":
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        stop_command_in_group(user_name)
         return
 
     for attempt in range(3):  # до 3 попыток при конфликте
@@ -454,7 +463,7 @@ def start_handler(message):
 def info_handler(message):
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        command_in_group(user_name)
         return
     is_admin = (user_id in ADMIN_USER_ID)
 
@@ -472,6 +481,7 @@ def info_handler(message):
     text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n"
     text += "• /today — <i>показать задачи на сегодня</i>\n"
     text += "• /week — <i>показать задачи на текущую неделю</i>\n\n"
+    text += "• /weekbydate — <i>показать задачи на неделю по дате</i>\n"
     text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~2 минут).</i>\n"
     text += "<i>• Также иногда могут быть проблемы с Базой Данных при обновлениях.</i>\n"
     text += "<i>• В этом случае вы можете связаться с админами или просто подождать. При любых действиях, вызывающих ошибку, информация передается админам автоматически.</i>\n\n"
@@ -488,7 +498,7 @@ def info_handler(message):
 def feedback_handler(message):
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        stop_command_in_group(user_name)
         return
     bot.send_message(
         message.chat.id,
@@ -541,7 +551,7 @@ def handle_feedback_message(msg):
 def daytasks_handler(message):
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        stop_command_in_group(user_name)
         return
     example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
     bot.send_message(
@@ -611,7 +621,7 @@ def handle_daytasks_date_input(msg):
 @bot.message_handler(commands=["today"])
 def today_handler(message):
     if message.chat.type != "private":
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        stop_command_in_group(user_name)
         return
 
     user_id = str(message.from_user.id)
@@ -639,7 +649,7 @@ def today_handler(message):
 @bot.message_handler(commands=["week"])
 def week_handler(message):
     if message.chat.type != "private":
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        stop_command_in_group(user_name)
         return
 
     user_id = str(message.from_user.id)
@@ -682,11 +692,100 @@ def week_handler(message):
 
     send_long_message(bot, message.chat.id, full_message)
 
+@bot.message_handler(commands=["weekbydate"])
+def weekbydate_handler(message):
+    if message.chat.type != "private":
+        stop_command_in_group(user_name)
+        return
+
+    user_id = str(message.from_user.id)
+    example = now_msk().strftime("%Y-%m-%d")
+    bot.send_message(
+        message.chat.id,
+        f"Введите дату в формате: ГГГГ-ММ-ДД\n"
+        f"Пример: {example}",
+        reply_markup=make_cancel_button("cancel_weekbydate")
+    )
+    user_awaiting_weekbydate_input.add(user_id)
+
+@bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_weekbydate_input)
+def handle_weekbydate_input(msg):
+    user_id = str(msg.from_user.id)
+    chat_id = msg.chat.id
+    date_str = msg.text.strip()
+
+    # Удаляем из режима сразу
+    user_awaiting_weekbydate_input.discard(user_id)
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        bot.send_message(
+            chat_id,
+            "❌ Неверный формат даты.\n"
+            "Используй: ГГГГ-ММ-ДД\n"
+            "Пример: 2025-10-17",
+            reply_markup=make_cancel_button("cancel_weekbydate")
+        )
+        user_awaiting_weekbydate_input.add(user_id)  # вернуть в режим
+        return
+
+    # Находим понедельник недели, в которую попадает target_date
+    weekday = target_date.weekday()  # ПН=0, ..., ВС=6
+    monday = target_date - timedelta(days=weekday)
+    sunday = monday + timedelta(days=6)
+
+    # Генерируем все дни недели
+    week_days = [monday + timedelta(days=i) for i in range(7)]
+
+    # Загружаем данные
+    try:
+        data = load_data()
+    except Exception as e:
+        logger.error(f"Ошибка загрузки БД в /weekbydate: {e}")
+        bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
+        return
+
+    if user_id not in 
+        bot.send_message(chat_id, "Сначала отправьте /start")
+        return
+
+    # Формируем вывод
+    weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
+    lines = []
+    for day in week_days:
+        weekday_abbr = weekdays_ru[day.weekday()]
+        date_str_fmt = day.strftime("%d.%m.%Y")
+        tasks = []
+        for task in data[user_id].get("tasks", []):
+            if task.get("status") == "completed":
+                continue
+            try:
+                task_dt = datetime.fromisoformat(task["datetime"])
+                if task_dt.date() == day:
+                    tasks.append(f"• {task['text']} ({task_dt.strftime('%H:%M')})")
+            except (ValueError, KeyError):
+                continue
+
+        lines.append(f"{weekday_abbr} {date_str_fmt}")
+        if tasks:
+            lines.append("\n".join(tasks))
+        else:
+            lines.append("Нет задач")
+        lines.append("")
+        lines.append("")
+
+    full_message = "\n".join(lines).strip()
+    if not full_message:
+        full_message = "На эту неделю задач нет."
+
+    send_long_message(bot, chat_id, full_message)
+
 @bot.message_handler(commands=["task"])
 def task_handler(message):
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
-        bot.send_message(message.chat.id, f"⚠️ Извините, {user_name}, бот не работает в группах!")
+        stop_command_in_group(user_name)
         return
     user_name = message.from_user.first_name or "Пользователь"
     data = load_data(user_name, message.from_user.id, "task")
