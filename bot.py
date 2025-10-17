@@ -331,6 +331,8 @@ def universal_cancel_handler(call):
         in_mode = user_id in user_awaiting_json_file
     elif action == "cancel_feedback":
         in_mode = user_id in user_awaiting_feedback
+    elif action == "cancel_daytasks":
+        in_mode = user_id in user_awaiting_daytasks_date
 
     if in_mode:
         # Выходим из режима
@@ -341,6 +343,8 @@ def universal_cancel_handler(call):
             user_awaiting_json_file.discard(user_id)
         elif action == "cancel_feedback":
             user_awaiting_feedback.discard(user_id)
+        elif action == "cancel_daytasks":
+            user_awaiting_daytasks_date.discard(user_id)
 
         # Отправляем сообщение в чат (не редактируем старое!)
         bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
@@ -383,6 +387,9 @@ def generate_today_datetime():
 def start_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
+    if user_id != chat_id = msg.chat.id:
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+        return
 
     for attempt in range(3):  # до 3 попыток при конфликте
         # 1. Читаем СВЕЖУЮ БД из Gist
@@ -429,6 +436,9 @@ def start_handler(message):
 @bot.message_handler(commands=["info"])
 def info_handler(message):
     user_id = str(message.from_user.id)
+    if user_id != chat_id = msg.chat.id:
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+        return
     is_admin = (user_id in ADMIN_USER_ID)
 
     text = "ℹ️ <b>Информация о боте «Ежедневник»</b>\n\n"
@@ -458,6 +468,9 @@ def info_handler(message):
 @bot.message_handler(commands=["feedback"])
 def feedback_handler(message):
     user_id = str(message.from_user.id)
+    if user_id != chat_id = msg.chat.id:
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+        return
     bot.send_message(
         message.chat.id,
         "• Напишите ваше сообщение админам. Это может быть жалоба, пожелание или благодарность.\n"
@@ -508,6 +521,9 @@ def handle_feedback_message(msg):
 @bot.message_handler(commands=["daytasks"])
 def daytasks_handler(message):
     user_id = str(message.from_user.id)
+    if user_id != chat_id = msg.chat.id:
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+        return
     example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
     bot.send_message(
         message.chat.id,
@@ -573,41 +589,12 @@ def handle_daytasks_date_input(msg):
         full_message = header + "\n\n".join(tasks_on_date)
         send_long_message(bot, chat_id, full_message)
 
-@bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
-def universal_cancel_handler(call):
-    user_id = str(call.from_user.id)
-    action = call.data
-    command_name = CANCEL_ACTION_NAMES[action]
-
-    in_mode = False
-    if action == "cancel_task":
-        in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
-    elif action == "cancel_jsonin":
-        in_mode = user_id in user_awaiting_json_file
-    elif action == "cancel_daytasks":
-        in_mode = user_id in user_awaiting_daytasks_date  # ← новая строка
-
-    if in_mode:
-        if action == "cancel_task":
-            user_awaiting_task_text.pop(user_id, None)
-            user_awaiting_datetime.pop(user_id, None)
-        elif action == "cancel_jsonin":
-            user_awaiting_json_file.discard(user_id)
-        elif action == "cancel_daytasks":
-            user_awaiting_daytasks_date.discard(user_id)  # ← новая строка
-
-        bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
-        bot.answer_callback_query(call.id)
-    else:
-        bot.answer_callback_query(
-            call.id,
-            f"Режим ввода команды {command_name} уже был отменён!",
-            show_alert=False
-        ) 
-
 @bot.message_handler(commands=["task"])
 def task_handler(message):
     user_id = str(message.from_user.id)
+    if user_id != chat_id = msg.chat.id:
+        bot.send_message(message.chat.id, f"⚠️ Извините, {user_id}, бот не работает в чатах!")
+        return
     user_name = message.from_user.first_name or "Пользователь"
     data = load_data(user_name, message.from_user.id, "task")
     if data == None:
