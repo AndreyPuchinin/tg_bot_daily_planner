@@ -297,7 +297,7 @@ def start_handler(message):
         # 1. Читаем СВЕЖУЮ БД из Gist
         data = load_data()
 
-        bot.send_message(message.chat.id, data)
+        bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
         # 2. Если пользователь уже есть — выходим
         if user_id in data:
