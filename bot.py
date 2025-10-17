@@ -529,7 +529,7 @@ def handle_daytasks_date_input(msg):
         target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         text = "❌ Неверный формат даты.\n"
-        text += "Используй: ГГГГ-ММ-ДД\n"+
+        text += "Используй: ГГГГ-ММ-ДД\n"
         text += generate_today_datetime()
         bot.send_message(
             chat_id,
