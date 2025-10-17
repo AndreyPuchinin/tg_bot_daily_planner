@@ -188,20 +188,20 @@ def jsonout_handler(message):
         return
 
     try:
+        text = ""
         data = load_data(user_name, message.from_user.id, "jsonout")
         if not data:
-            bot.send_message(message.chat.id, "⚠️ База данных ещё не создана.")
-            return
+            text += "⚠️ База данных ещё не создана."
         elif is_data_empty(data):
-            bot.send_message(message.chat.id, "⚠️ База данных существует, но пока пуста.")
-            return
+            text += "⚠️ База данных существует, но пока пуста."
 
+        text += "📁 Текущая база данных"
         json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
         bot.send_document(
             message.chat.id,
             document=BytesIO(json_bytes),
             visible_file_name="data.json",
-            caption="📁 Текущая база данных"
+            caption=text
         )
 
     except json.JSONDecodeError as e:
