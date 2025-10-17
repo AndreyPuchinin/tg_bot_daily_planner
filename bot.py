@@ -292,24 +292,40 @@ def generate_example_datetime():
 def start_handler(message):
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
-    data = load_data()
-    if user_id not in data:
+
+    for attempt in range(3):  # до 3 попыток
+        data = load_data()
+        if user_id in data:
+            bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
+            return
+
+        # Добавляем нового пользователя
         data[user_id] = {
             "user_name": user_name,
             "chat_id": str(message.chat.id),
             "tasks": []
         }
+
+        # Сохраняем
         save_data(data)
-        bot.send_message(
-            message.chat.id,
-            f"Привет, {user_name}! 👋\n"
-            "Я — твой личный ежедневник в Telegram.\n"
-            "Используй команды:\n"
-            "/start - запустить бота\n"
-            "/task — добавить задачу\n"
-        )
-    else:
-        bot.send_message(message.chat.id, f"С возвращением, {user_name}! Готов работать.")
+
+        # Проверяем, что пользователь действительно появился в БД
+        data_check = load_data()
+        if user_id in data_check:
+            bot.send_message(
+                message.chat.id,
+                f"Привет, {user_name}! 👋\n"
+                "Я — твой личный ежедневник в Telegram.\n"
+                "Используй команды:\n"
+                "/start - запустить бота\n"
+                "/task — добавить задачу\n"
+            )
+            return
+        # Если не сохранилось — повторяем цикл (возможно, конфликт записи)
+
+    # Если все попытки провалились
+    bot.send_message(message.chat.id, "⚠️ Не удалось инициализировать профиль. Попробуйте позже.")
+    logger.error(f"Failed to initialize user {user_id} after 3 attempts")
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
