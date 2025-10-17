@@ -364,7 +364,7 @@ def send_long_message(bot, chat_id, text):
         return
     max_len = 4000
     for i in range(0, len(text), max_len):
-        bot.send_message(chat_id, text[i:i + max_len])
+        bot.send_message(chat_id, text[i:i + max_len], parse_mode="HTML")
 
 def generate_example_datetime():
     now = now_msk()
@@ -669,7 +669,7 @@ def week_handler(message):
         date_str = day.strftime("%d.%m.%Y")
         tasks = get_tasks_on_date(data, user_id, day)
 
-        lines.append(f"{weekday_abbr} {date_str}")
+        lines.append(f"<b>{weekday_abbr} {date_str}</b>")
         if tasks:
             lines.append("\n".join(tasks))
         else:
