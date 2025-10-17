@@ -714,7 +714,6 @@ def weekbydate_handler(message):
 def handle_weekbydate_input(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
-    user_name = msg.from_user.first_name
     date_str = msg.text.strip()
 
     # Удаляем из режима сразу
@@ -731,20 +730,16 @@ def handle_weekbydate_input(msg):
             f"Пример: {example}",
             reply_markup=make_cancel_button("cancel_weekbydate")
         )
-        user_awaiting_weekbydate_input.add(user_id)  # вернуть в режим
+        user_awaiting_weekbydate_input.add(user_id)
         return
 
-    # Находим понедельник недели, в которую попадает target_date
-    weekday = target_date.weekday()  # ПН=0, ..., ВС=6
-    monday = target_date - timedelta(days=weekday)
-    sunday = monday + timedelta(days=6)
-
-    # Генерируем все дни недели
+    # Находим неделю (ПН–ВС)
+    monday = target_date - timedelta(days=target_date.weekday())
     week_days = [monday + timedelta(days=i) for i in range(7)]
 
     # Загружаем данные
     try:
-        data = load_data(user_name, user_id, "weekbydate")
+        data = load_data()
     except Exception as e:
         logger.error(f"Ошибка загрузки БД в /weekbydate: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -754,12 +749,12 @@ def handle_weekbydate_input(msg):
         bot.send_message(chat_id, "Сначала отправьте /start")
         return
 
-    # Формируем вывод
+    # Собираем задачи по дням
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
-    lines = []
+    week_lines = []
+    has_any_task = False
+
     for day in week_days:
-        weekday_abbr = weekdays_ru[day.weekday()]
-        date_str_fmt = day.strftime("%d.%m.%Y")
         tasks = []
         for task in data[user_id].get("tasks", []):
             if task.get("status") == "completed":
@@ -771,6 +766,20 @@ def handle_weekbydate_input(msg):
             except (ValueError, KeyError):
                 continue
 
+        if tasks:
+            has_any_task = True
+        # Сохраняем всё для последующего вывода (но не форматируем пока)
+        week_lines.append((day, tasks))
+
+    # Формируем финальное сообщение
+    if not has_any_task:
+        send_long_message(bot, chat_id, "На эту неделю задач нет.")
+        return
+
+    lines = []
+    for day, tasks in week_lines:
+        weekday_abbr = weekdays_ru[day.weekday()]
+        date_str_fmt = day.strftime("%d.%m.%Y")
         lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
         if tasks:
             lines.append("\n".join(tasks))
@@ -780,11 +789,6 @@ def handle_weekbydate_input(msg):
         lines.append("")
 
     full_message = "\n".join(lines).strip()
-    if not full_message:
-        full_message = "На эту неделю задач нет."
-        send_long_message(bot, chat_id, full_message)
-        return
-
     send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["task"])
