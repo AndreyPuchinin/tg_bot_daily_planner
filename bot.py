@@ -441,7 +441,7 @@ def info_handler(message):
     text += "• <i>Задачи напоминаются автоматически:</i>\n"
     text += "  – <i>за день в 13:00 по МСК,</i>\n"
     text += "  – <i>или за 12 часов до начала.</i>\n"
-    text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n"
+    text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n\n"
     text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~2 минут).</i>\n"
     text += "<i>• Также иногда могут быть проблемы с Базой Данных при обновлениях.</i>\n"
     text += "<i>• В этом случае вы можете связаться с админами или просто подождать. При любых действиях, вызывающих ошибку, информация передается админам автоматически.</i>\n\n"
@@ -519,6 +519,7 @@ def daytasks_handler(message):
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_daytasks_date)
 def handle_daytasks_date_input(msg):
     user_id = str(msg.from_user.id)
+    user_name = str(msg.from_user.first_name)
     chat_id = msg.chat.id
     date_str = msg.text.strip()
 
@@ -541,7 +542,7 @@ def handle_daytasks_date_input(msg):
 
     # Загружаем данные
     try:
-        data = load_data()
+        data = load_data(user_name, user_id, "todaytasks")
     except Exception as e:
         logger.error(f"Ошибка загрузки БД в /daytasks: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
