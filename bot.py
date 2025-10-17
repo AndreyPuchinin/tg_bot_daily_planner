@@ -251,11 +251,19 @@ def jsonin_handler(message):
                 reply_markup=make_cancel_button("cancel_jsonin")
             )
         elif is_data_empty(data):
-            bot.send_message(
+            main_msg += "\n⚠️ База данных существует, но пока пуста."
+            # Отправляем текущую БД как файл, даже если она пуста
+            # (ведь там могут быть айдишники юзеров...)
+            main_msg += "\n📁 Текущая база данных:"
+            json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+            bot.send_document(
                 message.chat.id,
-                main_msg + "\n⚠️ База данных существует, но пока пуста.",
+                document=BytesIO(json_bytes),
+                visible_file_name="data.json",
+                caption=main_msg, 
                 reply_markup=make_cancel_button("cancel_jsonin")
             )
+        else:
             # Отправляем текущую БД как файл, даже если она пуста
             # (ведь там могут быть айдишники юзеров...)
             json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
