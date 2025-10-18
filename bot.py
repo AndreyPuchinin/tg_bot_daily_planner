@@ -152,8 +152,8 @@ def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
     message_to_admins = (
         f"🆕 Новый пользователь зарегистрировался в боте!\n\n"
         f"<b>Имя: <i>{user_name}</i></b>\n"
-        f"<i><b>ID:</b> {user_id}</i>\n"
-        f"<i><b>Chat ID:</b> {chat_id}</i>"
+        f"<i><b>ID:</b> ||{user_id}||</i>\n"
+        f"<i><b>Chat ID:</b> ||{chat_id}||</i>"
     )
     for admin_id in ADMIN_USER_ID:
         try:
@@ -164,7 +164,7 @@ def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     """Отправляет всем админам уведомление о проблеме с БД."""
     message_to_admins = (
-        f"‼️ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
+        f"‼️ Пользователь <b>{user_name} (ID=||{user_id})||</b> пытается выполнить команду /{command}, "
         f"но произошла ошибка при работе с Базой Данных!\n"
         f"Подробнее об ошибке:\n{error_details}"
     )
@@ -297,14 +297,14 @@ def handle_json_file(msg):
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
     except json.JSONDecodeError as e:
         error_details = f"❌Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
-        logger.error(f"❌JSON decode error from user {msg.from_user.id}: {error_details}")
+        logger.error(f"❌JSON decode error from user ||{msg.from_user.id}||: {error_details}")
         bot.send_message(
             chat_id,
             f"❌ Некорректный JSON-файл.\nПодробности:\n{error_details}",
             reply_markup=make_cancel_button("cancel_jsonin")
         )
     except UnicodeDecodeError as e:
-        logger.error(f"Unicode decode error from user {msg.from_user.id}: {e}")
+        logger.error(f"Unicode decode error from user |||{msg.from_user.id}||: {e}")
         bot.send_message(chat_id, "❌Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
     except Exception as e:
         logger.error(f"Unexpected error in handle_json_file: {e}", exc_info=True)
@@ -438,11 +438,11 @@ def start_handler(message):
             return
 
         # Если не сохранилось — повторяем цикл (возможно, кто-то перезаписал)
-        logger.warning(f"Попытка {attempt + 1}: пользователь {user_id} не сохранился в БД")
+        logger.warning(f"Попытка {attempt + 1}: пользователь ||{user_id}|| не сохранился в БД")
 
     # Если все попытки провалились
     bot.send_message(message.chat.id, "⚠️ Не удалось инициализировать профиль. Попробуйте позже.")
-    logger.error(f"❌ Не удалось инициализировать пользователя {user_id} после 3 попыток")
+    logger.error(f"❌ Не удалось инициализировать пользователя ||{user_id}|| после 3 попыток")
 
 @bot.message_handler(commands=["info"])
 def info_handler(message):
@@ -510,7 +510,7 @@ def handle_feedback_message(msg):
 
     # Формируем сообщение для админов
     admin_message = (
-        f"📩 Пользователь {user_name} (ID={user_id}) отправил фидбек:\n\n"
+        f"📩 Пользователь {user_name} (ID=||{user_id}||) отправил фидбек:\n\n"
         f"{feedback_text}"
     )
 
@@ -521,7 +521,7 @@ def handle_feedback_message(msg):
             bot.send_message(admin_id, admin_message)
             success_count += 1
         except Exception as e:
-            logger.error(f"Не удалось отправить фидбек админу {admin_id}: {e}")
+            logger.error(f"Не удалось отправить фидбек админу ||{admin_id}||: {e}")
 
     # Подтверждаем пользователю
     if success_count > 0:
@@ -668,7 +668,7 @@ def week_handler(message):
         if tasks:
             lines.append("\n".join(tasks))
         else:
-            lines.append("Нет задач")
+            lines.append("• Нет задач")
         lines.append("")  # одна пустая строка после каждого дня
 
     full_message = "\n".join(lines).strip()
