@@ -878,6 +878,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             task_time = datetime.fromisoformat(task["datetime"])
         except:
             continue
+        logger.error(f"Task: {task}")
         if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 19:
             logger.error(f"Task time: {task_time.date()}")
             tasks_to_remind.append(task)
