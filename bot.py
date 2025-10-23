@@ -878,7 +878,8 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             task_time = datetime.fromisoformat(task["datetime"])
         except:
             continue
-        if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 18:
+        if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 18  or now.hour == 19:
+            logger.error(task_time.date())
             tasks_to_remind.append(task)
         elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
             tasks_to_remind.append(task)
@@ -897,7 +898,7 @@ def reminder_daemon():
         try:
             data = load_data("", 0, "")
             for user_id, user_data in data.items():
-                check_and_send_reminders(bot, user_id, user_id, user_data)
+                check_and_send_reminders(bot, user_id, user_id, data)
         except Exception as e:
             print(f"Reminder error: {e}")
         time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
