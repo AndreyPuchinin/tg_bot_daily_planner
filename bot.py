@@ -878,16 +878,16 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             task_time = datetime.fromisoformat(task["datetime"])
         except:
             continue
-        if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 13:
+        if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 18:
             tasks_to_remind.append(task)
         elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
             tasks_to_remind.append(task)
     if not tasks_to_remind:
         return
-    lines = []
+    lines = ["Напоминаю!\n\n"]
     for task in tasks_to_remind:
         dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
-        lines.append(f"Напоминаю!\n\n🔔 {task['text']}\n📅 {dt_str}")
+        lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
         task["reminded"] = True
     save_data(data)
     send_long_message(bot, chat_id, "\n\n".join(lines).strip())
@@ -897,7 +897,7 @@ def reminder_daemon():
         try:
             data = load_data("", 0, "")
             for user_id, user_data in data.items():
-                check_and_send_reminders(bot, user_id, user_id, data)
+                check_and_send_reminders(bot, user_id, user_id, user_data)
         except Exception as e:
             print(f"Reminder error: {e}")
         time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
