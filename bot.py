@@ -873,7 +873,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     tasks_to_remind = []
     for task in data[user_id]["tasks"]:
         if task.get("status") != "waiting" or task.get("reminded", True):
-            logger.error("1")
+            logger.error(f"1; Task: {task}")
             continue
         try:
             logger.error("2")
