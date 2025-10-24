@@ -13,7 +13,7 @@ F? -  OK in /settings
 
 v  - -json(in&out) not in chats!!!
 
--> - /overdue
+v - /overdue
 
 -> - Сортировка в Напоминании
 

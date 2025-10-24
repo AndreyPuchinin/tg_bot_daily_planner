@@ -994,7 +994,7 @@ def tomorrow_handler(message):
 
     # logger.debug("4")
     tomorrow = (now_msk().date() + timedelta(days=1))
-    tasks = get_sorted_tasks_on_date(data, user_id, tomorrow)f
+    tasks = get_sorted_tasks_on_date(data, user_id, tomorrow)
 
     # logger.debug("5")
 
