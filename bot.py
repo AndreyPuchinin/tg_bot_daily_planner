@@ -318,6 +318,54 @@ def handle_json_file(msg):
         logger.critical(f"Unexpected error in handle_json_file: {e}", exc_info=True)
         bot.send_message(chat_id, f"❌Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
 
+# ФУНКЦИЯ КНОПКИ
+@bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
+def settings_callback_handler(call):
+    user_id = str(call.from_user.id)
+    chat_id = call.message.chat.id
+    action = call.data
+
+    if action == "settings_cancel":
+        # Передаём управление универсальному обработчику
+        universal_cancel_handler(call)
+        return
+
+    # Загружаем данные ДО использования, чтобы получить текущее значение
+    data = load_data(call.from_user.first_name, user_id, "settings")
+    if data is None or user_id not in data:
+        bot.send_message(chat_id, "Сначала отправьте /start")
+        bot.answer_callback_query(call.id)
+        return
+
+    # Определяем, какой параметр редактируется
+    if action == "settings_urgent_threshold":
+        param_name = "urgent_threshold"
+        current_val = data.get("settings", {}).get("urgent_threshold_hours", 12)
+        prompt = f"Введите новый порог срочности (в часах).\nТекущее значение: {current_val}\nДопустимо: от 1 до 168."
+    elif action == "settings_daily_hour":
+        param_name = "daily_hour"
+        current_val = data.get("settings", {}).get("daily_reminder_hour", 6)
+        prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
+    else:
+        bot.answer_callback_query(call.id, "⚠️Нажата некорректная кнопка!", show_alert=True)
+        return
+
+    # Сохраняем состояние
+    user_awaiting_settings_input[user_id] = param_name
+
+    # Отправляем сообщение с запросом значения
+    bot.send_message(
+        chat_id,
+        prompt,
+        reply_markup=make_cancel_button(f"cancel_settings_{param_name}")
+    )
+
+    # Подтверждаем нажатие
+    bot.answer_callback_query(call.id)
+
+    # Добавляем в режим /settings (для отмены самого меню)
+    user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
+
 # ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
@@ -338,7 +386,9 @@ def universal_cancel_handler(call):
     elif action == "cancel_weekbydate":
         in_mode = user_id in user_awaiting_weekbydate_input
     elif action == "settings_cancel":
-        in_mode = user_id in user_in_settings_menu            
+        in_mode = user_id in user_in_settings_menu
+    elif action in ("cancel_settings_urgent_threshold", "cancel_settings_daily_hour"):
+        in_mode = user_id in user_awaiting_settings_input
             
     if in_mode:
         # Выходим из режима
@@ -355,6 +405,8 @@ def universal_cancel_handler(call):
             user_awaiting_weekbydate_input.discard(user_id)
         elif action == "settings_cancel":
             user_in_settings_menu.discard(user_id)
+        elif action in ("cancel_settings_urgent_threshold", "cancel_settings_daily_hour"):
+            user_awaiting_settings_input.pop(user_id, None)
 
         # Отправляем сообщение в чат (не редактируем старое!)
         bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
@@ -367,54 +419,6 @@ def universal_cancel_handler(call):
             f"Режим ввода команды {command_name} уже был отменён!",
             show_alert=False  # можно True, если хочешь модальное окно
         )
-
-# ФУНКЦИЯ КНОПКИ
-@bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
-def settings_callback_handler(call):
-    user_id = str(call.from_user.id)
-    chat_id = call.message.chat.id
-    action = call.data
-
-    if action == "settings_cancel":
-        # Передаём управление универсальному обработчику
-        universal_cancel_handler(call)
-        return
-
-    # Определяем, какой параметр редактируется
-    if action == "settings_urgent_threshold":
-        param_name = "urgent_threshold"
-        current_val = data.get("settings", {}).get("urgent_threshold_hours", 12)
-        prompt = f"Введите новый порог срочности (в часах).\nТекущее значение: {current_val}\nДопустимо: от 1 до 168."
-    elif action == "settings_daily_hour":
-        param_name = "daily_hour"
-        current_val = data.get("settings", {}).get("daily_reminder_hour", 6)
-        prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
-    else:
-        bot.answer_callback_query(call.id, "⚠️Нажата некорректная кнопка!", show_alert=True)
-        return
-
-    # Загружаем данные, чтобы получить текущее значение
-    data = load_data(call.from_user.first_name, user_id, "settings")
-    if data is None or user_id not in data:
-        bot.send_message(chat_id, "Сначала отправьте /start")
-        bot.answer_callback_query(call.id)
-        return
-
-    # Сохраняем состояние
-    user_awaiting_settings_input[user_id] = param_name
-
-    # Отправляем сообщение с запросом значения
-    bot.send_message(
-        chat_id,
-        prompt,
-        reply_markup=make_cancel_button(f"cancel_settings_{param_name}")
-    )
-
-    # Подтверждаем нажатие
-    bot.answer_callback_query(call.id)
-
-    # Добавим действие в CANCEL_ACTIONS динамически (или статически — проще)
-    # Но у нас уже есть универсальный cancel, так что добавим в CANCEL_ACTION_NAMES
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
