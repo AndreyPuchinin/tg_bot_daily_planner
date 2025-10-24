@@ -332,17 +332,22 @@ def settings_callback_handler(call):
     if call.chat.type != "private":
         stop_command_in_group(call.chat.id, call.from_user.first_name or "Пользователь")
         return
+
+    logger.warning("callback_query_handler(): 1")
+    
     user_id = str(call.from_user.id)
     chat_id = call.message.chat.id
     action = call.data
 
     if action == "settings_cancel":
         # Передаём управление универсальному обработчику
+        logger.warning("callback_query_handler(): 2")
         universal_cancel_handler(call)
         return
 
     # 🔴 КРИТИЧЕСКАЯ ПРОВЕРКА: пользователь должен быть в меню /settings
     if user_id not in user_in_settings_menu:
+        logger.warning("callback_query_handler(): 3")
         bot.answer_callback_query(
             call.id,
             "Режим ввода команды /settings уже был отменён!",
@@ -353,6 +358,7 @@ def settings_callback_handler(call):
     # Загружаем данные ДО использования, чтобы получить текущее значение
     data = load_data(call.from_user.first_name, call.chat.id, "settings")
     if data is None or user_id not in data:
+        logger.warning("callback_query_handler(): 4")
         bot.send_message(chat_id, "Сначала отправьте /start")
         bot.answer_callback_query(call.id)
         return
@@ -368,7 +374,10 @@ def settings_callback_handler(call):
         prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
     else:
         bot.answer_callback_query(call.id, "⚠️Нажата некорректная кнопка!", show_alert=True)
+        logger.warning("callback_query_handler(): 5")
         return
+
+    logger.warning("callback_query_handler(): 6")
 
     # Сохраняем состояние
     user_awaiting_settings_input[user_id] = param_name
@@ -385,6 +394,8 @@ def settings_callback_handler(call):
 
     # Добавляем в режим /settings (для отмены самого меню, покидаем меню)
     user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
+
+    logger.warning("callback_query_handler(): 7")
 
 # ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
