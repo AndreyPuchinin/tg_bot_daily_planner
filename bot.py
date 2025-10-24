@@ -335,10 +335,19 @@ def settings_callback_handler(call):
     user_id = str(call.from_user.id)
     chat_id = call.message.chat.id
     action = call.data
-    
+
     if action == "settings_cancel":
         # Передаём управление универсальному обработчику
         universal_cancel_handler(call)
+        return
+
+    # 🔴 КРИТИЧЕСКАЯ ПРОВЕРКА: пользователь должен быть в меню /settings
+    if user_id not in user_in_settings_menu:
+        bot.answer_callback_query(
+            call.id,
+            "Режим ввода команды /settings уже был отменён!",
+            show_alert=False
+        )
         return
 
     # Загружаем данные ДО использования, чтобы получить текущее значение
@@ -374,7 +383,7 @@ def settings_callback_handler(call):
     # Подтверждаем нажатие
     bot.answer_callback_query(call.id)
 
-    # Добавляем в режим /settings (для отмены самого меню)
+    # Добавляем в режим /settings (для отмены самого меню, покидаем меню)
     user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
 
 # ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
@@ -398,6 +407,15 @@ def universal_cancel_handler(call):
         in_mode = user_id in user_awaiting_weekbydate_input
     elif action == "settings_cancel":
         in_mode = user_id in user_in_settings_menu
+        if in_mode:
+            user_in_settings_menu.discard(user_id)
+            bot.answer_callback_query(call.id)
+        else:
+            bot.answer_callback_query(
+                call.id,
+                "Режим ввода команды /settings уже был отменён!",
+                show_alert=False
+            )
     elif action in ("cancel_settings_urgent_threshold", "cancel_settings_daily_hour"):
         in_mode = user_id in user_awaiting_settings_input
             
@@ -680,6 +698,9 @@ def settings_handler(message):
     if data is None or user_id not in data:
         bot.send_message(message.chat.id, "Сначала отправьте /start")
         return
+
+    # Добавляем пользователя в режим
+    user_in_settings_menu.add(user_id)
 
     # Создаём inline-клавиатуру
     markup = telebot.types.InlineKeyboardMarkup()
