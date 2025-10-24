@@ -872,7 +872,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     now = now_msk()
     tasks_to_remind = []
     for task in data[user_id]["tasks"]:
-        if task.get("status") != "waiting" or task.get("reminded", False):
+        if (task.get("status") != "waiting" and task.get("status") != True) or task.get("reminded", False):
             logger.debug(f"1; Task: {task}")
             continue
         try:
