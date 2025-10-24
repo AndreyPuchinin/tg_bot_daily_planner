@@ -328,9 +328,9 @@ def handle_json_file(msg):
 # ФУНКЦИЯ КНОПКИ
 @bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
 def settings_callback_handler(call):
-    user_name = message.from_user.first_name or "Пользователь"
+    user_name = call.from_user.first_name or "Пользователь"
     if message.chat.type != "private":
-        stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
+        stop_command_in_group(call.chat.id, message.from_user.first_name or "Пользователь")
         return
     user_id = str(call.from_user.id)
     chat_id = call.message.chat.id
@@ -351,7 +351,7 @@ def settings_callback_handler(call):
         return
 
     # Загружаем данные ДО использования, чтобы получить текущее значение
-    data = load_data(call.from_user.first_name, message.chat.id, "settings")
+    data = load_data(call.from_user.first_name, call.chat.id, "settings")
     if data is None or user_id not in data:
         bot.send_message(chat_id, "Сначала отправьте /start")
         bot.answer_callback_query(call.id)

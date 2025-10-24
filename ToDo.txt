@@ -9,8 +9,9 @@ ID:
 -> - /settings: 
 !  -  если вышли из режима, нажатия на кнопки в режиме должны вспылвать месседж
 !  -  Режим должен завершаться!
+!  -  OK in /settings
 
-! - -json(in&out) not in chats!!!
+v - -json(in&out) not in chats!!!
 
 ! - /overdue
 
