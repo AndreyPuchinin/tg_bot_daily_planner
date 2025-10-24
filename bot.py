@@ -325,6 +325,60 @@ def handle_json_file(msg):
         logger.critical(f"Unexpected error in handle_json_file: {e}", exc_info=True)
         bot.send_message(chat_id, f"❌Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
 
+# ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
+@bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
+def universal_cancel_handler(call):
+    user_id = str(call.from_user.id)
+    action = call.data
+    command_name = CANCEL_ACTION_NAMES[action]
+
+    # Определяем, находится ли пользователь в нужном режиме
+    in_mode = False
+    if action == "cancel_task":
+        in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
+    elif action == "cancel_jsonin":
+        in_mode = user_id in user_awaiting_json_file
+    elif action == "cancel_feedback":
+        in_mode = user_id in user_awaiting_feedback
+    elif action == "cancel_daytasks":
+        in_mode = user_id in user_awaiting_daytasks_date
+    elif action == "cancel_weekbydate":
+        in_mode = user_id in user_awaiting_weekbydate_input
+    elif action == "settings_cancel":
+        in_mode = user_id in user_in_settings_menu
+    elif action in ("settings_urgent_threshold", "settings_daily_hour"):
+        in_mode = user_id in user_awaiting_settings_input
+            
+    if in_mode:
+        # Выходим из режима
+        if action == "cancel_task":
+            user_awaiting_task_text.pop(user_id, None)
+            user_awaiting_datetime.pop(user_id, None)
+        elif action == "cancel_jsonin":
+            user_awaiting_json_file.discard(user_id)
+        elif action == "cancel_feedback":
+            user_awaiting_feedback.discard(user_id)
+        elif action == "cancel_daytasks":
+            user_awaiting_daytasks_date.discard(user_id)
+        elif action == "cancel_weekbydate":
+            user_awaiting_weekbydate_input.discard(user_id)
+        elif action == "settings_cancel":
+            user_in_settings_menu.discard(user_id)
+        elif action in ("settings_urgent_threshold", "settings_daily_hour"):
+            user_awaiting_settings_input.pop(user_id, None)
+
+        # Отправляем сообщение в чат (не редактируем старое!)
+        bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
+        # Подтверждаем нажатие кнопки (убираем "часики")
+        bot.answer_callback_query(call.id)
+    else:
+        # Пользователь уже не в режиме → показываем всплывающее уведомление
+        bot.answer_callback_query(
+            call.id,
+            f"Режим ввода команды {command_name} уже был отменён!",
+            show_alert=False  # можно True, если хочешь модальное окно
+        )
+
 # ФУНКЦИЯ КНОПКИ
 @bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
 def settings_callback_handler(call):
@@ -400,60 +454,6 @@ def settings_callback_handler(call):
     # user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
 
     logger.debug("callback_query_handler(): 7")
-
-# ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
-@bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
-def universal_cancel_handler(call):
-    user_id = str(call.from_user.id)
-    action = call.data
-    command_name = CANCEL_ACTION_NAMES[action]
-
-    # Определяем, находится ли пользователь в нужном режиме
-    in_mode = False
-    if action == "cancel_task":
-        in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
-    elif action == "cancel_jsonin":
-        in_mode = user_id in user_awaiting_json_file
-    elif action == "cancel_feedback":
-        in_mode = user_id in user_awaiting_feedback
-    elif action == "cancel_daytasks":
-        in_mode = user_id in user_awaiting_daytasks_date
-    elif action == "cancel_weekbydate":
-        in_mode = user_id in user_awaiting_weekbydate_input
-    elif action == "settings_cancel":
-        in_mode = user_id in user_in_settings_menu
-    elif action in ("settings_urgent_threshold", "settings_daily_hour"):
-        in_mode = user_id in user_awaiting_settings_input
-            
-    if in_mode:
-        # Выходим из режима
-        if action == "cancel_task":
-            user_awaiting_task_text.pop(user_id, None)
-            user_awaiting_datetime.pop(user_id, None)
-        elif action == "cancel_jsonin":
-            user_awaiting_json_file.discard(user_id)
-        elif action == "cancel_feedback":
-            user_awaiting_feedback.discard(user_id)
-        elif action == "cancel_daytasks":
-            user_awaiting_daytasks_date.discard(user_id)
-        elif action == "cancel_weekbydate":
-            user_awaiting_weekbydate_input.discard(user_id)
-        elif action == "settings_cancel":
-            user_in_settings_menu.discard(user_id)
-        elif action in ("settings_urgent_threshold", "settings_daily_hour"):
-            user_awaiting_settings_input.pop(user_id, None)
-
-        # Отправляем сообщение в чат (не редактируем старое!)
-        bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
-        # Подтверждаем нажатие кнопки (убираем "часики")
-        bot.answer_callback_query(call.id)
-    else:
-        # Пользователь уже не в режиме → показываем всплывающее уведомление
-        bot.answer_callback_query(
-            call.id,
-            f"Режим ввода команды {command_name} уже был отменён!",
-            show_alert=False  # можно True, если хочешь модальное окно
-        )
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
