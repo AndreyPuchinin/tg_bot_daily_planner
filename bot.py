@@ -325,7 +325,102 @@ def handle_json_file(msg):
         logger.critical(f"Unexpected error in handle_json_file: {e}", exc_info=True)
         bot.send_message(chat_id, f"❌Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
 
-# ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
+# ФУНКЦИЯ ОБРАБОТКИ КНОПОК
+@bot.callback_query_handler(func=lambda call: True)  # ЛОВИМ ВСЁ
+def universal_callback_handler(call):
+    user_id = str(call.from_user.id)
+    action = call.data
+
+    # --- Обработка отмен ---
+    if action in CANCEL_ACTIONS:
+        command_name = CANCEL_ACTION_NAMES[action]
+        in_mode = False
+        if action == "cancel_task":
+            in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
+        elif action == "cancel_jsonin":
+            in_mode = user_id in user_awaiting_json_file
+        elif action == "cancel_feedback":
+            in_mode = user_id in user_awaiting_feedback
+        elif action == "cancel_daytasks":
+            in_mode = user_id in user_awaiting_daytasks_date
+        elif action == "cancel_weekbydate":
+            in_mode = user_id in user_awaiting_weekbydate_input
+        elif action == "settings_cancel":
+            in_mode = user_id in user_in_settings_menu
+        elif action in ("cancel_settings_urgent_threshold", "cancel_settings_daily_hour"):
+            in_mode = user_id in user_awaiting_settings_input
+
+        if in_mode:
+            # Выход из режима
+            if action == "cancel_task":
+                user_awaiting_task_text.pop(user_id, None)
+                user_awaiting_datetime.pop(user_id, None)
+            elif action == "cancel_jsonin":
+                user_awaiting_json_file.discard(user_id)
+            elif action == "cancel_feedback":
+                user_awaiting_feedback.discard(user_id)
+            elif action == "cancel_daytasks":
+                user_awaiting_daytasks_date.discard(user_id)
+            elif action == "cancel_weekbydate":
+                user_awaiting_weekbydate_input.discard(user_id)
+            elif action == "settings_cancel":
+                user_in_settings_menu.discard(user_id)
+            elif action in ("cancel_settings_urgent_threshold", "cancel_settings_daily_hour"):
+                user_awaiting_settings_input.pop(user_id, None)
+
+            bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
+            bot.answer_callback_query(call.id)
+        else:
+            bot.answer_callback_query(call.id, f"Режим {command_name} уже отменён!", show_alert=False)
+        return
+
+    # --- Обработка настроек ---
+    if action.startswith("settings_"):
+        if action == "settings_cancel":
+            # Это уже обработано выше, но на случай дубля
+            bot.answer_callback_query(call.id)
+            return
+
+        # Проверка: пользователь в меню настроек?
+        if user_id not in user_in_settings_menu:
+            bot.answer_callback_query(call.id, "Меню /settings закрыто.", show_alert=False)
+            return
+
+        # Загрузка данных
+        data = load_data(call.from_user.first_name, call.message.chat.id, "settings")
+        if data is None or user_id not in data:
+            bot.send_message(call.message.chat.id, "Сначала отправьте /start")
+            bot.answer_callback_query(call.id)
+            return
+
+        # Определяем параметр
+        if action == "settings_urgent_threshold":
+            param_name = "urgent_threshold"
+            current_val = data.get("settings", {}).get("urgent_threshold_hours", 12)
+            prompt = f"Введите новый порог срочности (в часах).\nТекущее значение: {current_val}\nДопустимо: от 1 до 168."
+        elif action == "settings_daily_hour":
+            param_name = "daily_hour"
+            current_val = data.get("settings", {}).get("daily_reminder_hour", 6)
+            prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
+        else:
+            bot.answer_callback_query(call.id, "⚠️ Неизвестная настройка!", show_alert=True)
+            return
+
+        # Переход в режим ввода значения
+        user_awaiting_settings_input[user_id] = param_name
+        user_in_settings_menu.discard(user_id)  # вышли из меню
+        bot.send_message(
+            call.message.chat.id,
+            prompt,
+            reply_markup=make_cancel_button(f"cancel_settings_{param_name}")
+        )
+        bot.answer_callback_query(call.id)
+        return
+
+    # --- Если action неизвестен ---
+    bot.answer_callback_query(call.id, "⚠️ Неизвестное действие", show_alert=True)
+
+"""# ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
 def universal_cancel_handler(call):
     user_id = str(call.from_user.id)
@@ -453,7 +548,7 @@ def settings_callback_handler(call):
     # Добавляем в режим /settings (для отмены самого меню, покидаем меню)
     # user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
 
-    logger.debug("callback_query_handler(): 7")
+    logger.debug("callback_query_handler(): 7")"""
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
