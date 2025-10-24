@@ -673,7 +673,7 @@ def tomorrow_handler(message):
         )
     else:
         logger.debug("7")
-        header = f"📋 Задачи на завтра ({tomorrow.strftime('%d.%m.%Y')}):"
+        header = f"📋 Задачи на завтра ({tomorrow.strftime('%d.%m.%Y')}):\n"
         full_message = header + "\n" + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message)
 
