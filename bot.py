@@ -1037,7 +1037,7 @@ def week_handler(message):
     # Словарь: день недели → русская аббревиатура
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
 
-        lines = []
+    lines = []
     for day in week_days:
         weekday_abbr = weekdays_ru[day.weekday()] 
         date_str = day.strftime("%d.%m.%Y")
