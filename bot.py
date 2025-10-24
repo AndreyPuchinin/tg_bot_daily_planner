@@ -964,6 +964,8 @@ def today_handler(message):
     today = now_msk().date()
     tasks = get_sorted_tasks_on_date(data, message.from_user.id, today)
 
+    logger.error(f"tasks = {tasks}")
+
     if not tasks:
         bot.send_message(message.chat.id, f"📅 На сегодня ({today.strftime('%d.%m.%Y')}) нет запланированных задач.")
     else:
