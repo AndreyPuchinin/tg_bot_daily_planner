@@ -1,10 +1,10 @@
-/tomorow
+v - /tomorow
 
 ID:
 (/edit
 /delete - ПОДТВЕРЖДЕНИЕ!!!) - для всех Особых Напоминаний - ТОЖЕ!!!
 
-/settings
+! - /settings
 
 ВАЛИДАЦИЯ
 /task.(special remind)

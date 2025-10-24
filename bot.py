@@ -641,13 +641,13 @@ def tomorrow_handler(message):
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
 
-    logger.debug("1")
+    # logger.debug("1")
 
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
 
     try:
-        logger.debug("2")
+        # logger.debug("2")
         data = load_data(user_name, user_id, "tomorrow")
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /tomorrow: {e}")
@@ -655,24 +655,24 @@ def tomorrow_handler(message):
         return
 
     if user_id not in data:
-        logger.debug("3")
+        # logger.debug("3")
         bot.send_message(message.chat.id, "Сначала отправьте /start")
         return
 
-    logger.debug("4")
+    # logger.debug("4")
     tomorrow = (now_msk().date() + timedelta(days=1))
     tasks = get_tasks_on_date(data, user_id, tomorrow)
 
-    logger.debug("5")
+    # logger.debug("5")
 
     if not tasks:
-        logger.debug("6")
+        # logger.debug("6")
         bot.send_message(
             message.chat.id,
             f"📅 На завтра ({tomorrow.strftime('%d.%m.%Y')}) нет запланированных задач."
         )
     else:
-        logger.debug("7")
+        # logger.debug("7")
         header = f"📋 Задачи на завтра ({tomorrow.strftime('%d.%m.%Y')}):\n"
         full_message = header + "\n" + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message)
