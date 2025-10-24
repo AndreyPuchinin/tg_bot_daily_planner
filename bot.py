@@ -12,7 +12,7 @@ import os
 
 # === НАСТРОЙКИ ===
 
-# === НАСТРОЙКИ (из переменных окружения) ===
+# Bз переменных окружения
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ADMIN_USER_ID_RAW = os.getenv("ADMIN_USER_ID") #в настройки: добавлять и удалять админов. Возможности админов и администрирования
@@ -65,6 +65,8 @@ CANCEL_ACTIONS = set(CANCEL_ACTION_NAMES.keys())
 
 # Текст оповещения о системной ошибке для пользователей
 USER_DB_ERROR_MESSAGE = "⚠️ Произошла ошибка при работе с базой данных. Обратитесь, пожалуйста, к администраторам бота!"
+
+hour_for_remind = 15
 
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
@@ -872,25 +874,26 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     now = now_msk()
     tasks_to_remind = []
     for task in data[user_id]["tasks"]:
+        # task.get по-умолчанию == True. Поэтому надо перепроверять и добавлять False-ответ в условие!!!
         if (task.get("status") != "waiting" and task.get("status") != True) or task.get("reminded", False):
-            logger.debug(f"1; Task: {task}")
+            # logger.debug(f"1; Task: {task}")
             continue
         try:
-            logger.debug("2")
+            # logger.debug("2")
             task_time = datetime.fromisoformat(task["datetime"])
         except Exception as e:
-            logger.debug(f"3; Reminder inner error: {e}")
+            # logger.debug(f"3; Reminder inner error: {e}")
             continue
-        logger.debug(f"4; Task: {task}")
-        if (task_time.date() == (now.date() + timedelta(days=1))):  # and now.hour == 19:
-            logger.debug(f"5; Task time: {task_time.date()}")
+        # logger.debug(f"4; Task: {task}")
+        if (task_time.date() == (now.date() + timedelta(days=1)) and now.hour == hour_for_remind:
+            # logger.debug(f"5; Task time: {task_time.date()}")
             tasks_to_remind.append(task)
         elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
-            logger.debug(f"6; Task: {task}")
+            # logger.debug(f"6; Task: {task}")
             tasks_to_remind.append(task)
     if not tasks_to_remind:
         return
-    lines = ["Напоминаю!\n"]
+    lines = ["Напоминаю!"]
     for task in tasks_to_remind:
         dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
         lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
