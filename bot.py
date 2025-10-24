@@ -715,7 +715,7 @@ def info_handler(message):
     text += "  – <i>или за 12 часов до начала.</i>\n"
     text += "  – <i>позже можно будет настраивать.</i>\n"
     text += "• /settings — <i>настроить напоминания</i>\n"
-    text += "• /overdue — <i>показать все прросроченные задачи</i>\n"
+    text += "• /overdue — <i>показать все просроченные задачи</i>\n"
     text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n"
     text += "• /today — <i>показать задачи на сегодня</i>\n"
     text += "• /tomorrow — <i>показать задачи на завтра</i>\n"
@@ -828,7 +828,7 @@ def overdue_handler(message):
         for task in overdue_tasks:
             dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
             lines.append(f"• {task['text']} ({dt_str})")
-        full_message = "⚠️ Просроченные задачи:\n" + "\n".join(lines)
+        full_message = "⚠️ Просроченные задачи:\n\n" + "\n".join(lines)
         send_long_message(bot, message.chat.id, full_message)
 
 @bot.message_handler(commands=["settings"])
