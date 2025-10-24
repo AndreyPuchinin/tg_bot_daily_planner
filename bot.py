@@ -346,15 +346,6 @@ def universal_cancel_handler(call):
         in_mode = user_id in user_awaiting_weekbydate_input
     elif action == "settings_cancel":
         in_mode = user_id in user_in_settings_menu
-        if in_mode:
-            user_in_settings_menu.discard(user_id)
-            bot.answer_callback_query(call.id)
-        else:
-            bot.answer_callback_query(
-                call.id,
-                "Режим ввода команды /settings уже был отменён!",
-                show_alert=False
-            )
     elif action in ("settings_urgent_threshold", "settings_daily_hour"):
         in_mode = user_id in user_awaiting_settings_input
             
