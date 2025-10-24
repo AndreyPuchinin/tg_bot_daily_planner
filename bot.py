@@ -328,11 +328,18 @@ def handle_json_file(msg):
 # ФУНКЦИЯ КНОПКИ
 @bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
 def settings_callback_handler(call):
+    if call.chat.type != "private":
+        stop_command_in_group(call.chat.id, call.from_user.first_name or "Пользователь")
+        return
+    
     user_id = str(call.from_user.id)
     chat_id = call.message.chat.id
     action = call.data
 
+    logger.debug("callback_query_handler(): 1")
+
     if action == "settings_cancel":
+        logger.debug("callback_query_handler(): 2")
         bot.edit_message_text("❌ Настройки отменены.", chat_id, call.message.message_id)
         bot.answer_callback_query(call.id)
         return
@@ -348,6 +355,7 @@ def settings_callback_handler(call):
         prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
     else:
         bot.answer_callback_query(call.id, "⚠️Нажата некорректная кнопка!", show_alert=True)
+        logger.debug("callback_query_handler(): 3")
         return
 
     # Загружаем данные, чтобы получить текущее значение
@@ -355,7 +363,10 @@ def settings_callback_handler(call):
     if data is None or user_id not in data:
         bot.send_message(chat_id, "Сначала отправьте /start")
         bot.answer_callback_query(call.id)
+        logger.debug("callback_query_handler(): 4")
         return
+
+    logger.debug("callback_query_handler(): 5")
 
     # Сохраняем состояние
     user_awaiting_settings_input[user_id] = param_name
