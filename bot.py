@@ -885,7 +885,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             # logger.debug(f"3; Reminder inner error: {e}")
             continue
         # logger.debug(f"4; Task: {task}")
-        if (task_time.date() == (now.date() + timedelta(days=1)) and now.hour == hour_for_remind:
+        if (task_time.date() == (now.date() + timedelta(days=1))) and (now.hour == hour_for_remind):
             # logger.debug(f"5; Task time: {task_time.date()}")
             tasks_to_remind.append(task)
         elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
@@ -898,8 +898,15 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
         dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
         lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
         task["reminded"] = True
+
+    # Соединяем задачи через ДВЕ пустые строки (как у вас было)
+    tasks_block = "\n\n".join(task_lines)
+
+    # А теперь добавляем заголовок с ОДНОЙ пустой строкой после него
+    full_message = "Напоминаю!\n\n" + tasks_block
+
     save_data(data)
-    send_long_message(bot, chat_id, "\n\n".join(lines).strip())
+    send_long_message(bot, chat_id, full_message)
 
 def reminder_daemon():
     while True:
