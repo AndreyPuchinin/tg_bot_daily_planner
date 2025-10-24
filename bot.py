@@ -66,7 +66,7 @@ CANCEL_ACTIONS = set(CANCEL_ACTION_NAMES.keys())
 # Текст оповещения о системной ошибке для пользователей
 USER_DB_ERROR_MESSAGE = "⚠️ Произошла ошибка при работе с базой данных. Обратитесь, пожалуйста, к администраторам бота!"
 
-hour_for_remind = 15
+hour_for_remind = 6
 
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
@@ -913,7 +913,7 @@ def reminder_daemon():
         try:
             data = load_data("", 0, "")
             for user_id, user_data in data.items():
-                logger.error("I'm in reminder_daemon()!")
+                # logger.error("I'm in reminder_daemon()!")
                 check_and_send_reminders(bot, user_id, user_id, data)
         except Exception as e:
             lines.append(f"Reminder error: {e}")
