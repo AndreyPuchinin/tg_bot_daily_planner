@@ -551,6 +551,20 @@ def settings_callback_handler(call):
     logger.debug("callback_query_handler(): 7")"""
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.date) -> list:
+    raw_tasks = []
+    for task in data.get(user_id, {}).get("tasks", []):
+        if task.get("status") == "completed":
+            continue
+        try:
+            task_dt = datetime.fromisoformat(task["datetime"])
+            if task_dt.date() == target_date:
+                raw_tasks.append(task)
+        except (ValueError, KeyError):
+            continue
+    raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
+    return raw_tasks
+
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
 def settings_value_input(msg):
     user_id = str(msg.from_user.id)
@@ -917,17 +931,7 @@ def handle_daytasks_date_input(msg):
         return
 
     # Ищем задачи на эту дату
-    tasks_on_date = []
-    for task in data[user_id]["tasks"]:
-        if task.get("status") == "completed":
-            continue
-        try:
-            task_dt = datetime.fromisoformat(task["datetime"])
-            if task_dt.date() == target_date:
-                formatted_time = task_dt.strftime("%H:%M")
-                tasks_on_date.append(f"• {task['text']} ({formatted_time})")
-        except (ValueError, KeyError):
-            continue
+    tasks_on_date = get_sorted_tasks_on_date(data, user_id, target_date)
 
     if not tasks_on_date:
         bot.send_message(chat_id, f"📅 На {date_str} нет запланированных задач.")
@@ -955,7 +959,7 @@ def today_handler(message):
         return
 
     today = now_msk().date()
-    tasks = get_tasks_on_date(data, user_id, today)
+    tasks = get_sorted_tasks_on_date(data, user_id, today)
 
     if not tasks:
         bot.send_message(message.chat.id, f"📅 На сегодня ({today.strftime('%d.%m.%Y')}) нет запланированных задач.")
@@ -990,7 +994,7 @@ def tomorrow_handler(message):
 
     # logger.debug("4")
     tomorrow = (now_msk().date() + timedelta(days=1))
-    tasks = get_tasks_on_date(data, user_id, tomorrow)
+    tasks = get_sorted_tasks_on_date(data, user_id, tomorrow)f
 
     # logger.debug("5")
 
@@ -1033,18 +1037,36 @@ def week_handler(message):
     # Словарь: день недели → русская аббревиатура
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
 
-    lines = []
-    for i, day in enumerate(week_days):
+        lines = []
+    for day in week_days:
         weekday_abbr = weekdays_ru[day.weekday()] 
         date_str = day.strftime("%d.%m.%Y")
-        tasks = get_tasks_on_date(data, user_id, day)
-
+        # Собираем задачи как объекты
+        raw_tasks = []
+        for task in data[user_id].get("tasks", []):
+            if task.get("status") == "completed":
+                continue
+            try:
+                task_dt = datetime.fromisoformat(task["datetime"])
+                if task_dt.date() == day:
+                    raw_tasks.append(task)
+            except (ValueError, KeyError):
+                continue
+        # Сортируем
+        raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
+        # Форматируем с экранированием
+        tasks = []
+        for task in raw_tasks:
+            safe_text = html.escape(task["text"])
+            time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
+            tasks.append(f"• {safe_text} ({time_str})")
+        
         lines.append(f"<b>{weekday_abbr} {date_str}</b>")
         if tasks:
             lines.append("\n".join(tasks))
         else:
             lines.append("Нет задач")
-        lines.append("")  # одна пустая строка после каждого дня
+        lines.append("")
 
     full_message = "\n".join(lines).strip()
     if not full_message:
@@ -1118,33 +1140,25 @@ def handle_weekbydate_input(msg):
 
     # Собираем задачи
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
-    lines = []
     has_any_task = False
 
-    for day in week_days:
-        tasks = []
-        for task in data[user_id].get("tasks", []):
-            if task.get("status") == "completed":
-                continue
-            try:
-                task_dt = datetime.fromisoformat(task["datetime"])
-                if task_dt.date() == day:
-                    safe_text = html.escape(task['text'])
-                    tasks.append(f"• {safe_text} ({task_dt.strftime('%H:%M')})")
-                    has_any_task = True
-            except (ValueError, KeyError):
-                continue
-        weekday_abbr = weekdays_ru[day.weekday()]
-        date_str_fmt = day.strftime("%d.%m.%Y")
-        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
-        lines.append("\n".join(tasks) if tasks else "• Нет задач")
-        lines.append("")  # пустая строка между днями
-
-    if not has_any_task:
-        bot.send_message(chat_id, "На эту неделю задач нет.")
-    else:
-        full_message = "\n".join(lines).strip()
-        send_long_message(bot, chat_id, full_message, parse_mode="HTML")
+    # Собираем и сортируем задачи
+    raw_tasks = []
+    for task in data[user_id].get("tasks", []):
+        if task.get("status") == "completed":
+            continue
+        try:
+            task_dt = datetime.fromisoformat(task["datetime"])
+            if task_dt.date() == day:
+                raw_tasks.append(task)
+        except (ValueError, KeyError):
+            continue
+    raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
+    tasks = []
+    for task in raw_tasks:
+        safe_text = html.escape(task["text"])
+        tasks.append(f"• {safe_text} ({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})")
+        has_any_task = True
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
@@ -1269,6 +1283,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
         elif (task_time - now).total_seconds() <= urgent_threshold * 3600  and task.get("status") != "overdue":
             # logger.debug(f"6; Task: {task}")
             tasks_to_remind.append(task)
+    tasks_to_remind.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
     if not tasks_to_remind:
         return
     lines = []
