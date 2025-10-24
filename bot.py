@@ -328,6 +328,53 @@ def handle_json_file(msg):
 # ФУНКЦИЯ КНОПКИ
 @bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
 def settings_callback_handler(call):
+    user_id = str(call.from_user.id)
+    chat_id = call.message.chat.id
+    action = call.data
+
+    if action == "settings_cancel":
+        bot.edit_message_text("❌ Настройки отменены.", chat_id, call.message.message_id)
+        bot.answer_callback_query(call.id)
+        return
+
+    # Определяем, какой параметр редактируется
+    if action == "settings_urgent_threshold":
+        param_name = "urgent_threshold"
+        current_val = data.get("settings", {}).get("urgent_threshold_hours", 12)
+        prompt = f"Введите новый порог срочности (в часах).\nТекущее значение: {current_val}\nДопустимо: от 1 до 168."
+    elif action == "settings_daily_hour":
+        param_name = "daily_hour"
+        current_val = data.get("settings", {}).get("daily_reminder_hour", 6)
+        prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
+    else:
+        bot.answer_callback_query(call.id, "⚠️Нажата некорректная кнопка!", show_alert=True)
+        return
+
+    # Загружаем данные, чтобы получить текущее значение
+    data = load_data(call.from_user.first_name, user_id, "settings")
+    if data is None or user_id not in data:
+        bot.send_message(chat_id, "Сначала отправьте /start")
+        bot.answer_callback_query(call.id)
+        return
+
+    # Сохраняем состояние
+    user_awaiting_settings_input[user_id] = param_name
+
+    # Отправляем сообщение с запросом значения
+    bot.send_message(
+        chat_id,
+        prompt,
+        reply_markup=make_cancel_button(f"cancel_settings_{param_name}")
+    )
+
+    # Подтверждаем нажатие
+    bot.answer_callback_query(call.id)
+
+    # Добавим действие в CANCEL_ACTIONS динамически (или статически — проще)
+    # Но у нас уже есть универсальный cancel, так что добавим в CANCEL_ACTION_NAMES
+
+"""@bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
+def settings_callback_handler(call):
     user_name = call.from_user.first_name or "Пользователь"
     if call.chat.type != "private":
         stop_command_in_group(call.chat.id, call.from_user.first_name or "Пользователь")
@@ -395,7 +442,7 @@ def settings_callback_handler(call):
     # Добавляем в режим /settings (для отмены самого меню, покидаем меню)
     user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
 
-    logger.debug("callback_query_handler(): 7")
+    logger.debug("callback_query_handler(): 7")"""
 
 # ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
 @bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
