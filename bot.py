@@ -338,8 +338,8 @@ def universal_cancel_handler(call):
     elif action == "cancel_weekbydate":
         in_mode = user_id in user_awaiting_weekbydate_input
     elif action == "settings_cancel":
-        in_mode = user_id in user_in_settings_menu
-
+        in_mode = user_id in user_in_settings_menu            
+            
     if in_mode:
         # Выходим из режима
         if action == "cancel_task":
@@ -353,6 +353,8 @@ def universal_cancel_handler(call):
             user_awaiting_daytasks_date.discard(user_id)
         elif action == "cancel_weekbydate":
             user_awaiting_weekbydate_input.discard(user_id)
+        elif action == "settings_cancel":
+            user_in_settings_menu.discard(user_id)
 
         # Отправляем сообщение в чат (не редактируем старое!)
         bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
