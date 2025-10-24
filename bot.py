@@ -893,14 +893,14 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             tasks_to_remind.append(task)
     if not tasks_to_remind:
         return
-    lines = ["Напоминаю!"]
+    lines = []
     for task in tasks_to_remind:
         dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
         lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
         task["reminded"] = True
 
     # Соединяем задачи через ДВЕ пустые строки (как у вас было)
-    tasks_block = "\n\n".join(task_lines)
+    tasks_block = "\n\n".join(lines)
 
     # А теперь добавляем заголовок с ОДНОЙ пустой строкой после него
     full_message = "Напоминаю!\n\n" + tasks_block
