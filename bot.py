@@ -552,6 +552,7 @@ def settings_callback_handler(call):
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.date) -> list:
+    """Возвращает отсортированный по времени список СТРОК с задачами на указанную дату."""
     raw_tasks = []
     for task in data.get(user_id, {}).get("tasks", []):
         if task.get("status") == "completed":
@@ -562,8 +563,10 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
                 raw_tasks.append(task)
         except (ValueError, KeyError):
             continue
+    # Сортируем по времени
     raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
-    return raw_tasks
+    # Преобразуем в строки
+    return [f"• {task['text']} ({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})" for task in raw_tasks]
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
 def settings_value_input(msg):
@@ -959,7 +962,7 @@ def today_handler(message):
         return
 
     today = now_msk().date()
-    tasks = get_sorted_tasks_on_date(data, user_id, today)
+    tasks = get_sorted_tasks_on_date(data, message.chat.id, today)
 
     if not tasks:
         bot.send_message(message.chat.id, f"📅 На сегодня ({today.strftime('%d.%m.%Y')}) нет запланированных задач.")
@@ -1092,73 +1095,72 @@ def weekbydate_handler(message):
     )
     user_awaiting_weekbydate_input.add(user_id)
 
-
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_weekbydate_input)
 def handle_weekbydate_input(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
     user_name = msg.from_user.first_name or "Пользователь"
     date_str = msg.text.strip()
-
-    # Убираем пользователя из режима ожидания сразу
     user_awaiting_weekbydate_input.discard(user_id)
 
-    # Проверка формата даты
     try:
         target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
-        # При ошибке — снова предлагаем ввод, с датой +7 дней
         example_date = (now_msk().date() + timedelta(days=7)).strftime("%Y-%m-%d")
         bot.send_message(
             chat_id,
-            "❌ Неверный формат даты.\n"
-            "Используй: ГГГГ-ММ-ДД\n"
-            f"Пример: {example_date}",
+            "❌ Неверный формат даты.\nИспользуй: ГГГГ-ММ-ДД\nПример: " + example_date,
             reply_markup=make_cancel_button("cancel_weekbydate")
         )
-        user_awaiting_weekbydate_input.add(user_id)  # вернуть в режим
+        user_awaiting_weekbydate_input.add(user_id)
         return
 
-    # Загружаем данные — передаём user_id, а не chat_id!
     try:
         data = load_data(user_name, chat_id, "weekbydate")
-        if data is None:
-            bot.send_message(chat_id, USER_DB_ERROR_MESSAGE)
+        if data is None or user_id not in data:
+            bot.send_message(chat_id, "Сначала отправьте /start")
             return
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /weekbydate: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
         return
 
-    if user_id not in data:
-        bot.send_message(chat_id, "Сначала отправьте /start")
-        return
-
-    # Находим понедельник недели, к которой относится введённая дата
     monday = target_date - timedelta(days=target_date.weekday())
     week_days = [monday + timedelta(days=i) for i in range(7)]
-
-    # Собираем задачи
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
+    lines = []
     has_any_task = False
 
-    # Собираем и сортируем задачи
-    raw_tasks = []
-    for task in data[user_id].get("tasks", []):
-        if task.get("status") == "completed":
-            continue
-        try:
-            task_dt = datetime.fromisoformat(task["datetime"])
-            if task_dt.date() == day:
-                raw_tasks.append(task)
-        except (ValueError, KeyError):
-            continue
-    raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
-    tasks = []
-    for task in raw_tasks:
-        safe_text = html.escape(task["text"])
-        tasks.append(f"• {safe_text} ({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})")
-        has_any_task = True
+    for day in week_days:
+        # Собираем и сортируем задачи на день
+        raw_tasks = []
+        for task in data[user_id].get("tasks", []):
+            if task.get("status") == "completed":
+                continue
+            try:
+                task_dt = datetime.fromisoformat(task["datetime"])
+                if task_dt.date() == day:
+                    raw_tasks.append(task)
+            except (ValueError, KeyError):
+                continue
+        raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
+        tasks = []
+        for task in raw_tasks:
+            safe_text = html.escape(task["text"])
+            tasks.append(f"• {safe_text} ({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})")
+            has_any_task = True
+
+        weekday_abbr = weekdays_ru[day.weekday()]
+        date_str_fmt = day.strftime("%d.%m.%Y")
+        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
+        lines.append("\n".join(tasks) if tasks else "• Нет задач")
+        lines.append("")
+
+    if not has_any_task:
+        bot.send_message(chat_id, "На эту неделю задач нет.")
+    else:
+        full_message = "\n".join(lines).strip()
+        send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
