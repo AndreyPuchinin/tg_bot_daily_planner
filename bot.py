@@ -873,17 +873,20 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     tasks_to_remind = []
     for task in data[user_id]["tasks"]:
         if task.get("status") != "waiting" or task.get("reminded", True):
+            logger.error("1")
             continue
         try:
+            logger.error("2")
             task_time = datetime.fromisoformat(task["datetime"])
         except Exception as e:
-            logger.error(f"Reminder inner error: {e}")
+            logger.error(f"3; Reminder inner error: {e}")
             continue
-        logger.error(f"Task: {task}")
+        logger.error(f"4; Task: {task}")
         if (task_time.date() == (now.date() + timedelta(days=1))):  # and now.hour == 19:
-            logger.error(f"Task time: {task_time.date()}")
+            logger.error(f"5; Task time: {task_time.date()}")
             tasks_to_remind.append(task)
         elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
+            logger.error(f"6; Task: {task}")
             tasks_to_remind.append(task)
     if not tasks_to_remind:
         return
