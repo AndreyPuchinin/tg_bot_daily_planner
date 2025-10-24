@@ -715,6 +715,7 @@ def info_handler(message):
     text += "  – <i>или за 12 часов до начала.</i>\n"
     text += "  – <i>позже можно будет настраивать.</i>\n"
     text += "• /settings — <i>настроить напоминания</i>\n"
+    text += "• /overdue — <i>показать все прросроченные задачи</i>\n"
     text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n"
     text += "• /today — <i>показать задачи на сегодня</i>\n"
     text += "• /tomorrow — <i>показать задачи на завтра</i>\n"
@@ -784,6 +785,51 @@ def handle_feedback_message(msg):
 
     # Выходим из режима ожидания
     user_awaiting_feedback.discard(user_id)
+
+@bot.message_handler(commands=["overdue"])
+def overdue_handler(message):
+    if message.chat.type != "private":
+        stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
+        return
+
+    user_id = str(message.from_user.id)
+    user_name = message.from_user.first_name or "Пользователь"
+    try:
+        data = load_data(user_name, message.chat.id, "overdue")
+    except Exception as e:
+        logger.critical(f"Ошибка загрузки БД в /overdue: {e}")
+        bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
+        return
+
+    if user_id not in data:
+        bot.send_message(message.chat.id, "Сначала отправьте /start")
+        return
+
+    now = now_msk()
+    overdue_tasks = []
+
+    for task in data[user_id]["tasks"]:
+        if task.get("status") != "waiting":
+            continue
+        try:
+            task_time = datetime.fromisoformat(task["datetime"])
+            if task_time < now:
+                overdue_tasks.append(task)
+        except (ValueError, KeyError):
+            continue
+
+    # Сортируем по времени (от старых к новым)
+    overdue_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
+
+    if not overdue_tasks:
+        bot.send_message(message.chat.id, "✅ Нет просроченных задач.")
+    else:
+        lines = []
+        for task in overdue_tasks:
+            dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
+            lines.append(f"• {task['text']} ({dt_str})")
+        full_message = "⚠️ Просроченные задачи:\n" + "\n".join(lines)
+        send_long_message(bot, message.chat.id, full_message)
 
 @bot.message_handler(commands=["settings"])
 def settings_handler(message):
