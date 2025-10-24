@@ -66,6 +66,7 @@ CANCEL_ACTIONS = set(CANCEL_ACTION_NAMES.keys())
 # Текст оповещения о системной ошибке для пользователей
 USER_DB_ERROR_MESSAGE = "⚠️ Произошла ошибка при работе с базой данных. Обратитесь, пожалуйста, к администраторам бота!"
 
+# Время авто-напоминаний
 hour_for_remind = 6
 
 def now_msk():
@@ -467,6 +468,7 @@ def info_handler(message):
     text += "  – <i>позже можно будет настраивать.</i>\n"
     text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n"
     text += "• /today — <i>показать задачи на сегодня</i>\n"
+    text += "• /tomorrow — <i>показать задачи на завтра</i>\n"
     text += "• /week — <i>показать задачи на текущую неделю</i>\n"
     text += "• /weekbydate — <i>показать задачи на неделю по дате</i>\n\n"
     text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~2 минут).</i>\n"
@@ -631,6 +633,48 @@ def today_handler(message):
     else:
         header = f"📋 Задачи на сегодня ({today.strftime('%d.%m.%Y')}):\n\n"
         full_message = header + "\n\n".join(tasks)
+        send_long_message(bot, message.chat.id, full_message)
+
+@bot.message_handler(commands=["tomorrow"])
+def tomorrow_handler(message):
+    if message.chat.type != "private":
+        stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
+        return
+
+    logger.debug("1")
+
+    user_id = str(message.from_user.id)
+    user_name = message.from_user.first_name or "Пользователь"
+
+    try:
+        logger.debug("2")
+        data = load_data(user_name, user_id, "tomorrow")
+    except Exception as e:
+        logger.critical(f"Ошибка загрузки БД в /tomorrow: {e}")
+        bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
+        return
+
+    if user_id not in data:
+        logger.debug("3")
+        bot.send_message(message.chat.id, "Сначала отправьте /start")
+        return
+
+    logger.debug("4")
+    tomorrow = (now_msk().date() + timedelta(days=1))
+    tasks = get_tasks_on_date(data, user_id, tomorrow)
+
+    logger.debug("5")
+
+    if not tasks:
+        logger.debug("6")
+        bot.send_message(
+            message.chat.id,
+            f"📅 На завтра ({tomorrow.strftime('%d.%m.%Y')}) нет запланированных задач."
+        )
+    else:
+        logger.debug("7")
+        header = f"📋 Задачи на завтра ({tomorrow.strftime('%d.%m.%Y')}):"
+        full_message = header + "\n" + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message)
 
 @bot.message_handler(commands=["week"])
@@ -903,7 +947,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     tasks_block = "\n\n".join(lines)
 
     # А теперь добавляем заголовок с ОДНОЙ пустой строкой после него
-    full_message = "Напоминаю!\n\n" + tasks_block
+    full_message = "‼Напоминаю!\n\n" + tasks_block
 
     save_data(data)
     send_long_message(bot, chat_id, full_message)
