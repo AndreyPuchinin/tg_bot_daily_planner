@@ -876,7 +876,8 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             continue
         try:
             task_time = datetime.fromisoformat(task["datetime"])
-        except:
+        except Exception as e:
+            lines.append(f"Reminder inner error: {e}")
             continue
         logger.error(f"Task: {task}")
         if (task_time.date() == (now.date() + timedelta(days=1))) and now.hour == 19:
