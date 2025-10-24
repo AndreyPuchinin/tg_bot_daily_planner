@@ -51,13 +51,16 @@ user_awaiting_datetime = {}
 user_awaiting_feedback = set()
 user_awaiting_daytasks_date = set()
 user_awaiting_weekbydate_input = set()
+user_awaiting_settings_input = {}  # {user_id: "urgent_threshold" или "daily_hour"}
 
 CANCEL_ACTION_NAMES = {
     "cancel_task": "/task",
     "cancel_jsonin": "/jsonin",
     "cancel_feedback": "/feedback",
     "cancel_daytasks": "/daytasks",
-    "cancel_weekbydate": "/weekbydate"
+    "cancel_weekbydate": "/weekbydate",
+    "cancel_settings_urgent_threshold": "/settings",
+    "cancel_settings_daily_hour": "/settings"
 }
 
 # Автоматически формируем множество допустимых callback_data-действий для отмены
@@ -65,9 +68,6 @@ CANCEL_ACTIONS = set(CANCEL_ACTION_NAMES.keys())
 
 # Текст оповещения о системной ошибке для пользователей
 USER_DB_ERROR_MESSAGE = "⚠️ Произошла ошибка при работе с базой данных. Обратитесь, пожалуйста, к администраторам бота!"
-
-# Время авто-напоминаний
-hour_for_remind = 6
 
 def now_msk():
     return datetime.utcnow() + timedelta(hours=TIMEZONE_OFFSET)
@@ -185,9 +185,6 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
     user_name = message.from_user.first_name or "Пользователь"
-    if str(message.from_user.id) not in ADMIN_USER_ID:
-        bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
-        return
 
     try:
         data = load_data(user_name, message.from_user.id, "jsonout")
@@ -197,8 +194,13 @@ def jsonout_handler(message):
         elif is_data_empty(data):
             text += "⚠️ База данных существует, но пока пуста.\n"
 
-        text += "📁 Текущая база данных"
         json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+
+        if str(message.from_user.id) not in ADMIN_USER_ID:
+            bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
+            return
+
+        text += "📁 Текущая база данных"
         bot.send_document(
             message.chat.id,
             document=BytesIO(json_bytes),
@@ -233,13 +235,6 @@ def is_data_empty(data: dict) -> bool:
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
     user_name = message.from_user.first_name or "Пользователь"
-    if str(message.from_user.id) not in ADMIN_USER_ID:
-        try:
-            bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
-        except Exception as e:
-            logger.critical(f"❌Не удалось отправить сообщение: {e}")
-        return
-
     main_msg = "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.\n"
 
     # Загружаем текущую БД из Gist
@@ -251,8 +246,16 @@ def jsonin_handler(message):
             main_msg += "⚠️ База данных существует, но пока пуста.\n"
         # Отправляем текущую БД как файл, даже если она пуста
         # (ведь там могут быть айдишники юзеров...)
-        main_msg += "📁 Текущая база данных:"
         json_bytes = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+
+        if str(message.from_user.id) not in ADMIN_USER_ID:
+            try:
+                bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
+            except Exception as e:
+                logger.critical(f"❌Не удалось отправить сообщение: {e}")
+            return
+        
+        main_msg += "📁 Текущая база данных:"
         bot.send_document(
             message.chat.id,
             document=BytesIO(json_bytes),
@@ -359,7 +362,108 @@ def universal_cancel_handler(call):
             show_alert=False  # можно True, если хочешь модальное окно
         )
 
+# ФУНКЦИЯ КНОПКИ
+@bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
+def settings_callback_handler(call):
+    user_id = str(call.from_user.id)
+    chat_id = call.message.chat.id
+    action = call.data
+
+    if action == "settings_cancel":
+        bot.edit_message_text("❌ Настройки отменены.", chat_id, call.message.message_id)
+        bot.answer_callback_query(call.id)
+        return
+
+    # Определяем, какой параметр редактируется
+    if action == "settings_urgent_threshold":
+        param_name = "urgent_threshold"
+        current_val = data.get("settings", {}).get("urgent_threshold_hours", 12)
+        prompt = f"Введите новый порог срочности (в часах).\nТекущее значение: {current_val}\nДопустимо: от 1 до 168."
+    elif action == "settings_daily_hour":
+        param_name = "daily_hour"
+        current_val = data.get("settings", {}).get("daily_reminder_hour", 6)
+        prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
+    else:
+        bot.answer_callback_query(call.id, "⚠️Нажата некорректная кнопка!", show_alert=True)
+        return
+
+    # Загружаем данные, чтобы получить текущее значение
+    data = load_data(call.from_user.first_name, user_id, "settings")
+    if data is None or user_id not in data:
+        bot.send_message(chat_id, "Сначала отправьте /start")
+        bot.answer_callback_query(call.id)
+        return
+
+    # Сохраняем состояние
+    user_awaiting_settings_input[user_id] = param_name
+
+    # Отправляем сообщение с запросом значения
+    bot.send_message(
+        chat_id,
+        prompt,
+        reply_markup=make_cancel_button(f"cancel_settings_{param_name}")
+    )
+
+    # Подтверждаем нажатие
+    bot.answer_callback_query(call.id)
+
+    # Добавим действие в CANCEL_ACTIONS динамически (или статически — проще)
+    # Но у нас уже есть универсальный cancel, так что добавим в CANCEL_ACTION_NAMES
+
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+@bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
+def settings_value_input(msg):
+    user_id = str(msg.from_user.id)
+    chat_id = msg.chat.id
+    param = user_awaiting_settings_input[user_id]
+
+    try:
+        value = int(msg.text.strip())
+    except ValueError:
+        bot.send_message(
+            chat_id,
+            "❌ Введите целое число.",
+            reply_markup=make_cancel_button(f"cancel_settings_{param}")
+        )
+        return
+
+    # Загружаем данные
+    data = load_data(msg.from_user.first_name, user_id, "settings")
+    if data is None or user_id not in data:
+        bot.send_message(chat_id, "Сначала отправьте /start")
+        user_awaiting_settings_input.pop(user_id, None)
+        return
+
+    # Валидация и сохранение
+    valid = False
+    if param == "urgent_threshold":
+        if 1 <= value <= 168:
+            data[user_id]["settings"]["urgent_threshold_hours"] = value
+            valid = True
+            success_msg = f"✅ Порог срочности установлен: {value} часов."
+        else:
+            bot.send_message(
+                chat_id,
+                "❌ Значение должно быть от 1 до 168.",
+                reply_markup=make_cancel_button("cancel_settings_urgent_threshold")
+            )
+    elif param == "daily_hour":
+        if 0 <= value <= 23:
+            data[user_id]["settings"]["daily_reminder_hour"] = value
+            valid = True
+            success_msg = f"✅ Ежедневное напоминание будет приходить в {value}:00 по МСК."
+        else:
+            bot.send_message(
+                chat_id,
+                "❌ Час должен быть от 0 до 23.",
+                reply_markup=make_cancel_button("cancel_settings_daily_hour")
+            )
+
+    if valid:
+        save_data(data)
+        bot.send_message(chat_id, success_msg)
+        user_awaiting_settings_input.pop(user_id, None)
+
 def send_long_message(bot, chat_id, text, parse_mode=None):
     if not text.strip():
         return
@@ -427,7 +531,11 @@ def start_handler(message):
         data[user_id] = {
             "user_name": user_name,
             "chat_id": str(message.chat.id),
-            "tasks": []
+            "tasks": [],
+            "settings": {
+                "urgent_threshold_hours": 12,
+                "daily_reminder_hour": 6
+            }
         }
 
         # 4. Сохраняем ВСЮ БД (включая новых пользователей)
@@ -466,6 +574,7 @@ def info_handler(message):
     text += "  – <i>за день в 13:00 по МСК,</i>\n"
     text += "  – <i>или за 12 часов до начала.</i>\n"
     text += "  – <i>позже можно будет настраивать.</i>\n"
+    text += "• /settings — <i>настроить напоминания</i>\n"
     text += "• /daytasks — <i>Посмотреть все задачи на указанную дату</i>\n"
     text += "• /today — <i>показать задачи на сегодня</i>\n"
     text += "• /tomorrow — <i>показать задачи на завтра</i>\n"
@@ -535,6 +644,37 @@ def handle_feedback_message(msg):
 
     # Выходим из режима ожидания
     user_awaiting_feedback.discard(user_id)
+
+@bot.message_handler(commands=["settings"])
+def settings_handler(message):
+    user_id = str(message.from_user.id)
+    if message.chat.type != "private":
+        stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
+        return
+
+    # Загружаем данные, чтобы убедиться, что пользователь существует
+    data = load_data(message.from_user.first_name, user_id, "settings")
+    if data is None or user_id not in data:
+        bot.send_message(message.chat.id, "Сначала отправьте /start")
+        return
+
+    # Создаём inline-клавиатуру
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(
+        telebot.types.InlineKeyboardButton("⏳ Порог срочности (часы)", callback_data="settings_urgent_threshold")
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton("🕒 Время ежедневного авто-напоминания (час)", callback_data="settings_daily_hour")
+    )
+    markup.add(
+        telebot.types.InlineKeyboardButton("❌ Отмена", callback_data="settings_cancel")
+    )
+
+    bot.send_message(
+        message.chat.id,
+        "⚙️ Выберите параметр для настройки:",
+        reply_markup=markup
+    )
 
 @bot.message_handler(commands=["daytasks"])
 def daytasks_handler(message):
@@ -915,6 +1055,9 @@ def datetime_input_handler(message):
 
 # === НАПОМИНАНИЯ ===
 def check_and_send_reminders(bot, user_id, chat_id, data):
+    user_settings = data[user_id].get("settings", {})
+    urgent_threshold = user_settings.get("urgent_threshold_hours", 12)
+    daily_hour = user_settings.get("daily_reminder_hour", 6)
     now = now_msk()
     tasks_to_remind = []
     for task in data[user_id]["tasks"]:
@@ -929,10 +1072,10 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
             # logger.debug(f"3; Reminder inner error: {e}")
             continue
         # logger.debug(f"4; Task: {task}")
-        if (task_time.date() == (now.date() + timedelta(days=1))) and (now.hour == hour_for_remind):
+        if (task_time.date() == (now.date() + timedelta(days=1))) and (now.hour == daily_hour):
             # logger.debug(f"5; Task time: {task_time.date()}")
             tasks_to_remind.append(task)
-        elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
+        elif (task_time - now).total_seconds() <= urgent_threshold * 3600  and task.get("status") != "overdue":
             # logger.debug(f"6; Task: {task}")
             tasks_to_remind.append(task)
     if not tasks_to_remind:

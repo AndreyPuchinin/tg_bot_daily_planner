@@ -4,7 +4,9 @@ ID:
 (/edit
 /delete - ПОДТВЕРЖДЕНИЕ!!!) - для всех Особых Напоминаний - ТОЖЕ!!!
 
-! - /settings
+/done
+
+-> - /settings
 
 ВАЛИДАЦИЯ
 /task.(special remind)
