@@ -52,6 +52,7 @@ user_awaiting_feedback = set()
 user_awaiting_daytasks_date = set()
 user_awaiting_weekbydate_input = set()
 user_awaiting_settings_input = {}  # {user_id: "urgent_threshold" или "daily_hour"}
+user_in_settings_menu = set()  # кто сейчас в меню /settings
 
 CANCEL_ACTION_NAMES = {
     "cancel_task": "/task",
@@ -59,6 +60,7 @@ CANCEL_ACTION_NAMES = {
     "cancel_feedback": "/feedback",
     "cancel_daytasks": "/daytasks",
     "cancel_weekbydate": "/weekbydate",
+    "settings_cancel": "/settings",
     "cancel_settings_urgent_threshold": "/settings",
     "cancel_settings_daily_hour": "/settings"
 }
@@ -335,6 +337,18 @@ def universal_cancel_handler(call):
         in_mode = user_id in user_awaiting_daytasks_date
     elif action == "cancel_weekbydate":
         in_mode = user_id in user_awaiting_weekbydate_input
+    elif action == "settings_cancel":
+        in_mode = user_id in user_in_settings_menu
+        if in_mode:
+            user_in_settings_menu.discard(user_id)
+            bot.send_message(call.message.chat.id, "❌ Режим ввода /settings отменён.")
+            bot.answer_callback_query(call.id)
+        else:
+            bot.answer_callback_query(
+                call.id,
+                "Режим ввода команды /settings уже был отменён!",
+                show_alert=False
+            )
 
     if in_mode:
         # Выходим из режима
@@ -370,8 +384,8 @@ def settings_callback_handler(call):
     action = call.data
 
     if action == "settings_cancel":
-        bot.edit_message_text("❌ Настройки отменены.", chat_id, call.message.message_id)
-        bot.answer_callback_query(call.id)
+        # Передаём управление универсальному обработчику
+        universal_cancel_handler(call)
         return
 
     # Определяем, какой параметр редактируется
@@ -651,6 +665,8 @@ def settings_handler(message):
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
+
+    user_in_settings_menu.add(user_id)
 
     # Загружаем данные, чтобы убедиться, что пользователь существует
     data = load_data(message.from_user.first_name, user_id, "settings")
