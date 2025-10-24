@@ -196,7 +196,7 @@ def jsonout_handler(message):
         data = load_data(user_name, message.chat.id, "jsonout")
         text = ""
         if not data:
-            text += "⚠️ База данных ещё не создана.\n"
+            text += "⚠️ Корректная база данных ещё не создана.\n"
         elif is_data_empty(data):
             text += "⚠️ База данных существует, но пока пуста.\n"
 
@@ -250,7 +250,7 @@ def jsonin_handler(message):
     try:
         data = load_data(user_name, message.chat.id, "jsonin")
         if not data:
-            main_msg += "⚠️ База данных ещё не создана.\n"
+            main_msg += "⚠️ Корректная база данных ещё не создана.\n"
         elif is_data_empty(data):
             main_msg += "⚠️ База данных существует, но пока пуста.\n"
         # Отправляем текущую БД как файл, даже если она пуста
@@ -329,8 +329,8 @@ def handle_json_file(msg):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
 def settings_callback_handler(call):
     user_name = call.from_user.first_name or "Пользователь"
-    if message.chat.type != "private":
-        stop_command_in_group(call.chat.id, message.from_user.first_name or "Пользователь")
+    if call.chat.type != "private":
+        stop_command_in_group(call.chat.id, call.from_user.first_name or "Пользователь")
         return
     user_id = str(call.from_user.id)
     chat_id = call.message.chat.id
@@ -690,8 +690,6 @@ def settings_handler(message):
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
-
-    user_in_settings_menu.add(user_id)
 
     # Загружаем данные, чтобы убедиться, что пользователь существует
     data = load_data(message.from_user.first_name, message.chat.id, "settings")
