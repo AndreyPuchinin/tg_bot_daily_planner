@@ -688,6 +688,9 @@ def settings_handler(message):
         reply_markup=markup
     )
 
+    user_awaiting_settings_input.pop(user_id, None)
+    user_in_settings_menu.discard(user_id)
+
 @bot.message_handler(commands=["daytasks"])
 def daytasks_handler(message):
     user_id = str(message.from_user.id)
