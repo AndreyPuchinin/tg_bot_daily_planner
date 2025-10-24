@@ -186,6 +186,10 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
 
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
+    if message.chat.type != "private":
+        stop_command_in_group(message.chat.id, user_name)
+        return
+    
     user_name = message.from_user.first_name or "Пользователь"
 
     try:
@@ -236,6 +240,9 @@ def is_data_empty(data: dict) -> bool:
 
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
+    if message.chat.type != "private":
+        stop_command_in_group(message.chat.id, user_name)
+        return
     user_name = message.from_user.first_name or "Пользователь"
     main_msg = "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.\n"
 
@@ -321,10 +328,14 @@ def handle_json_file(msg):
 # ФУНКЦИЯ КНОПКИ
 @bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
 def settings_callback_handler(call):
+    user_name = message.from_user.first_name or "Пользователь"
+    if message.chat.type != "private":
+        stop_command_in_group(message.chat.id, user_name)
+        return
     user_id = str(call.from_user.id)
     chat_id = call.message.chat.id
     action = call.data
-
+    
     if action == "settings_cancel":
         # Передаём управление универсальному обработчику
         universal_cancel_handler(call)
@@ -687,9 +698,6 @@ def settings_handler(message):
         "⚙️ Выберите параметр для настройки:",
         reply_markup=markup
     )
-
-    user_awaiting_settings_input.pop(user_id, None)
-    user_in_settings_menu.discard(user_id)
 
 @bot.message_handler(commands=["daytasks"])
 def daytasks_handler(message):
