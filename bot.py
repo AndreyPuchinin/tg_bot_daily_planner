@@ -180,7 +180,7 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
                 bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
                 bot.send_message(user_id, "⚠ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
                 # Отправляем сообщение об отмене нужного режима ввода в чат (не редактируем старое!)
-                bot.send_message(call.message.chat.id, f"❌ Режим ввода /{command} отменён.")
+                bot.send_message(user_id, f"❌ Режим ввода /{command} отменён.")
         except Exception as e:
             logger.critical(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
@@ -193,7 +193,7 @@ def jsonout_handler(message):
     user_name = message.from_user.first_name or "Пользователь"
 
     try:
-        data = load_data(user_name, message.from_user.id, "jsonout")
+        data = load_data(user_name, message.chat.id, "jsonout")
         text = ""
         if not data:
             text += "⚠️ База данных ещё не создана.\n"
@@ -248,7 +248,7 @@ def jsonin_handler(message):
 
     # Загружаем текущую БД из Gist
     try:
-        data = load_data(user_name, message.from_user.id, "jsonin")
+        data = load_data(user_name, message.chat.id, "jsonin")
         if not data:
             main_msg += "⚠️ База данных ещё не создана.\n"
         elif is_data_empty(data):
@@ -342,7 +342,7 @@ def settings_callback_handler(call):
         return
 
     # Загружаем данные ДО использования, чтобы получить текущее значение
-    data = load_data(call.from_user.first_name, user_id, "settings")
+    data = load_data(call.from_user.first_name, message.chat.id, "settings")
     if data is None or user_id not in data:
         bot.send_message(chat_id, "Сначала отправьте /start")
         bot.answer_callback_query(call.id)
@@ -449,7 +449,7 @@ def settings_value_input(msg):
         return
 
     # Загружаем данные
-    data = load_data(msg.from_user.first_name, user_id, "settings")
+    data = load_data(msg.from_user.first_name, msg.chat.id, "settings")
     if data is None or user_id not in data:
         bot.send_message(chat_id, "Сначала отправьте /start")
         user_awaiting_settings_input.pop(user_id, None)
@@ -539,7 +539,7 @@ def start_handler(message):
 
     for attempt in range(3):  # до 3 попыток при конфликте
         # 1. Читаем СВЕЖУЮ БД из Gist
-        data = load_data(user_name, message.from_user.id, "start")
+        data = load_data(user_name, message.chat.id, "start")
 
         # bot.send_message(message.chat.id, "🔍 Текущая БД:\n" + json.dumps(data, ensure_ascii=False, indent=2))
 
@@ -563,7 +563,7 @@ def start_handler(message):
         save_data(data)
 
         # 5. Проверяем, что всё сохранилось
-        data_check = load_data(user_name, message.from_user.id, "start")
+        data_check = load_data(user_name, message.chat.id, "start")
         if user_id in data_check:
             info_handler(message)
             notify_admins_about_new_user(user_name, user_id, str(message.chat.id))
@@ -676,7 +676,7 @@ def settings_handler(message):
     user_in_settings_menu.add(user_id)
 
     # Загружаем данные, чтобы убедиться, что пользователь существует
-    data = load_data(message.from_user.first_name, user_id, "settings")
+    data = load_data(message.from_user.first_name, message.chat.id, "settings")
     if data is None or user_id not in data:
         bot.send_message(message.chat.id, "Сначала отправьте /start")
         return
@@ -740,7 +740,7 @@ def handle_daytasks_date_input(msg):
 
     # Загружаем данные
     try:
-        data = load_data(user_name, user_id, "daytasks")
+        data = load_data(user_name, chat_id, "daytasks")
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /daytasks: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -778,7 +778,7 @@ def today_handler(message):
 
     user_id = str(message.from_user.id)
     try:
-        data = load_data(message.from_user.first_name, message.from_user.id, "today")
+        data = load_data(message.from_user.first_name, message.chat.id, "today")
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /today: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -811,7 +811,7 @@ def tomorrow_handler(message):
 
     try:
         # logger.debug("2")
-        data = load_data(user_name, user_id, "tomorrow")
+        data = load_data(user_name, message.chat.id, "tomorrow")
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /tomorrow: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -848,7 +848,7 @@ def week_handler(message):
 
     user_id = str(message.from_user.id)
     try:
-        data = load_data(message.from_user.first_name, message.from_user.id, "week")
+        data = load_data(message.from_user.first_name, message.chat.id, "week")
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /week: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -933,7 +933,7 @@ def handle_weekbydate_input(msg):
 
     # Загружаем данные — передаём user_id, а не chat_id!
     try:
-        data = load_data(user_name, user_id, "weekbydate")
+        data = load_data(user_name, chat_id, "weekbydate")
         if data is None:
             bot.send_message(chat_id, USER_DB_ERROR_MESSAGE)
             return
@@ -983,11 +983,12 @@ def handle_weekbydate_input(msg):
 @bot.message_handler(commands=["task"])
 def task_handler(message):
     user_id = str(message.from_user.id)
+    chat_id = message.chat.id
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, user_name)
         return
     user_name = message.from_user.first_name or "Пользователь"
-    data = load_data(user_name, message.from_user.id, "task")
+    data = load_data(user_name, chat_id, "task")
     if data == None:
         return
     text = message.text[6:].strip()
@@ -1012,8 +1013,9 @@ def task_handler(message):
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_task_text)
 def task_text_input(msg):
     user_id = str(msg.from_user.id)
+    chat_id = msg.chat.id
     user_name = msg.from_user.first_name or "Пользователь"
-    data = load_data(user_name, user_id, "task")
+    data = load_data(user_name, chat_id, "task")
     if data == None:
         return
     user_id = str(msg.from_user.id)
@@ -1035,11 +1037,11 @@ def task_text_input(msg):
 @bot.message_handler(func=lambda message: str(message.from_user.id) in user_awaiting_datetime)
 def datetime_input_handler(message):
     user_id = str(message.from_user.id)
+    chat_id = message.chat.id
     user_name = message.from_user.first_name or "Пользователь"
-    data = load_data(user_name, user_id, "task")
+    data = load_data(user_name, chat_id, "task")
     if data == None:
         return
-    chat_id = message.chat.id
     user_name = message.from_user.first_name or "Пользователь"
     datetime_str = message.text.strip()
     try:
@@ -1055,7 +1057,7 @@ def datetime_input_handler(message):
         )
         return
     text = user_awaiting_datetime[user_id]
-    data = load_data(user_name, message.from_user.id, "task")
+    data = load_data(user_name, chat_id, "task")
     if user_id not in data:
         bot.send_message(chat_id, "Сначала отправь /start")
         return
