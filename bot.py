@@ -1073,23 +1073,22 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     now = now_msk()
     tasks_to_remind = []
     for task in data[user_id]["tasks"]:
-        # task.get по-умолчанию == True.
-        # Поэтому надо перепроверять и добавлять False-ответ в условие!!!
+        # task.get по-умолчанию == True. Поэтому надо перепроверять и добавлять False-ответ в условие!!!
         if (task.get("status") != "waiting" and task.get("status") != True) or task.get("reminded", False):
-            logger.debug(f"1; Task: {task}")
+            # logger.debug(f"1; Task: {task}")
             continue
         try:
-            logger.debug("2")
+            # logger.debug("2")
             task_time = datetime.fromisoformat(task["datetime"])
         except Exception as e:
-            logger.debug(f"3; Reminder inner error: {e}")
+            # logger.debug(f"3; Reminder inner error: {e}")
             continue
-        logger.debug(f"4; Task: {task}")
+        # logger.debug(f"4; Task: {task}")
         if (task_time.date() == (now.date() + timedelta(days=1))) and (now.hour == daily_hour):
-            logger.debug(f"5; Task time: {task_time.date()}")
+            # logger.debug(f"5; Task time: {task_time.date()}")
             tasks_to_remind.append(task)
         elif (task_time - now).total_seconds() <= urgent_threshold * 3600  and task.get("status") != "overdue":
-            logger.debug(f"6; Task: {task}")
+            # logger.debug(f"6; Task: {task}")
             tasks_to_remind.append(task)
     if not tasks_to_remind:
         return
@@ -1113,7 +1112,7 @@ def reminder_daemon():
         try:
             data = load_data("", 0, "")
             for user_id, user_data in data.items():
-                logger.error("I'm in reminder_daemon()!")
+                # logger.error("I'm in reminder_daemon()!")
                 check_and_send_reminders(bot, user_id, user_id, data)
         except Exception as e:
             lines.append(f"Reminder error: {e}")
