@@ -962,6 +962,8 @@ def today_handler(message):
         return
 
     today = now_msk().date()
+    logger.error(f"today = {today}")
+    
     tasks = get_sorted_tasks_on_date(data, message.from_user.id, today)
 
     logger.error(f"tasks = {tasks}")
