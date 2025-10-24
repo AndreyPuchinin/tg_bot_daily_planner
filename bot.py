@@ -41,7 +41,7 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 app = Flask(__name__)
 
 # Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Состояния режимов ввода команд
@@ -80,7 +80,7 @@ def make_cancel_button(callback_data: str) -> telebot.types.InlineKeyboardMarkup
 def load_data(user_name: str, user_id: int, cmd: str):
     """Загружает данные из приватного Gist. Возвращает dict или None при ошибке."""
     if not GIST_ID or not GITHUB_TOKEN:
-        logger.error("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
+        logger.critical("GIST_ID или GITHUB_TOKEN не заданы в переменных окружения.")
         return None
 
     url = f"https://api.github.com/gists/{GIST_ID}"
@@ -130,9 +130,9 @@ def save_data(data):
     try:
         resp = requests.patch(url, json=payload, headers=headers, timeout=10)
         if resp.status_code != 200:
-            logger.error(f"❌Не удалось сохранить данные в Gist: {resp.status_code} {resp.text}")
+            logger.critical(f"❌Не удалось сохранить данные в Gist: {resp.status_code} {resp.text}")
     except Exception as e:
-        logger.error(f"❌Ошибка при сохранении данных в Gist: {e}")
+        logger.critical(f"❌Ошибка при сохранении данных в Gist: {e}")
         
 """def load_data():
     if os.path.exists(DATA_FILE):
@@ -159,7 +159,7 @@ def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
         try:
             bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
         except Exception as e:
-            logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+            logger.critical(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     """Отправляет всем админам уведомление о проблеме с БД."""
@@ -177,7 +177,7 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
                 # Отправляем сообщение об отмене нужного режима ввода в чат (не редактируем старое!)
                 bot.send_message(call.message.chat.id, f"❌ Режим ввода /{command} отменён.")
         except Exception as e:
-            logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+            logger.critical(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
@@ -205,7 +205,7 @@ def jsonout_handler(message):
 
     except json.JSONDecodeError as e:
         error_details = f"Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
-        logger.error(f"❌ Ошибка разбора JSON из Gist: {error_details}")
+        logger.critical(f"❌ Ошибка разбора JSON из Gist: {error_details}")
         bot.send_message(
             message.chat.id,
             f"⚠️ База данных повреждена: файл не является валидным JSON.\nПодробности:\n```\n{error_details}\n```",
@@ -213,7 +213,7 @@ def jsonout_handler(message):
         )
 
     except Exception as e:
-        logger.error(f"❌ Ошибка в /jsonout: {e}")
+        logger.critical(f"❌ Ошибка в /jsonout: {e}")
         bot.send_message(message.chat.id, f"❌ Не удалось получить базу данных: {e}")
 
 # Проверка БД на пустоту по смыслу (json с содержимым, но без задач)
@@ -234,7 +234,7 @@ def jsonin_handler(message):
         try:
             bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         except Exception as e:
-            logger.error(f"❌Не удалось отправить сообщение: {e}")
+            logger.critical(f"❌Не удалось отправить сообщение: {e}")
         return
 
     main_msg = "Прикрепите файл с расширением .json с содержимым Базы Данных планов всех пользователей для бота.\n"
@@ -258,7 +258,7 @@ def jsonin_handler(message):
             reply_markup=make_cancel_button("cancel_jsonin")
         )
     except Exception as e:
-        logger.error(f"❌Ошибка при чтении БД в /jsonin: {e}")
+        logger.critical(f"❌Ошибка при чтении БД в /jsonin: {e}")
         bot.send_message(
             message.chat.id,
             main_msg + f"\n❌ Не удалось прочитать текущую базу данных: {e}",
@@ -297,17 +297,17 @@ def handle_json_file(msg):
         bot.send_message(chat_id, "✅ Файл успешно загружен и применён!")
     except json.JSONDecodeError as e:
         error_details = f"❌Ошибка в JSON (строка {e.lineno}, колонка {e.colno}): {e.msg}"
-        logger.error(f"❌JSON decode error from user {msg.from_user.id}: {error_details}")
+        logger.critical(f"❌JSON decode error from user {msg.from_user.id}: {error_details}")
         bot.send_message(
             chat_id,
             f"❌ Некорректный JSON-файл.\nПодробности:\n{error_details}",
             reply_markup=make_cancel_button("cancel_jsonin")
         )
     except UnicodeDecodeError as e:
-        logger.error(f"Unicode decode error from user {msg.from_user.id}: {e}")
+        logger.critical(f"Unicode decode error from user {msg.from_user.id}: {e}")
         bot.send_message(chat_id, "❌Ошибка: файл не в кодировке UTF-8.", reply_markup=make_cancel_button("cancel_jsonin"))
     except Exception as e:
-        logger.error(f"Unexpected error in handle_json_file: {e}", exc_info=True)
+        logger.critical(f"Unexpected error in handle_json_file: {e}", exc_info=True)
         bot.send_message(chat_id, f"❌Ошибка при обработке файла: {e}", reply_markup=make_cancel_button("cancel_jsonin"))
 
 # ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
@@ -442,7 +442,7 @@ def start_handler(message):
 
     # Если все попытки провалились
     bot.send_message(message.chat.id, "⚠️ Не удалось инициализировать профиль. Попробуйте позже.")
-    logger.error(f"❌ Не удалось инициализировать пользователя {user_id} после 3 попыток")
+    logger.critical(f"❌ Не удалось инициализировать пользователя {user_id} после 3 попыток")
 
 @bot.message_handler(commands=["info"])
 def info_handler(message):
@@ -575,7 +575,7 @@ def handle_daytasks_date_input(msg):
     try:
         data = load_data(user_name, user_id, "daytasks")
     except Exception as e:
-        logger.error(f"Ошибка загрузки БД в /daytasks: {e}")
+        logger.critical(f"Ошибка загрузки БД в /daytasks: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
         return
 
@@ -613,7 +613,7 @@ def today_handler(message):
     try:
         data = load_data(message.from_user.first_name, message.from_user.id, "today")
     except Exception as e:
-        logger.error(f"Ошибка загрузки БД в /today: {e}")
+        logger.critical(f"Ошибка загрузки БД в /today: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
         return
 
@@ -641,7 +641,7 @@ def week_handler(message):
     try:
         data = load_data(message.from_user.first_name, message.from_user.id, "week")
     except Exception as e:
-        logger.error(f"Ошибка загрузки БД в /week: {e}")
+        logger.critical(f"Ошибка загрузки БД в /week: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
         return
 
@@ -729,7 +729,7 @@ def handle_weekbydate_input(msg):
             bot.send_message(chat_id, USER_DB_ERROR_MESSAGE)
             return
     except Exception as e:
-        logger.error(f"Ошибка загрузки БД в /weekbydate: {e}")
+        logger.critical(f"Ошибка загрузки БД в /weekbydate: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
         return
 
@@ -872,21 +872,21 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     now = now_msk()
     tasks_to_remind = []
     for task in data[user_id]["tasks"]:
-        if task.get("status") != "waiting" or task.get("reminded", True):
-            logger.error(f"1; Task: {task}")
+        if task.get("status") != "waiting" or task.get("reminded") == True:
+            logger.debug(f"1; Task: {task}")
             continue
         try:
-            logger.error("2")
+            logger.debug("2")
             task_time = datetime.fromisoformat(task["datetime"])
         except Exception as e:
-            logger.error(f"3; Reminder inner error: {e}")
+            logger.debug(f"3; Reminder inner error: {e}")
             continue
-        logger.error(f"4; Task: {task}")
+        logger.debug(f"4; Task: {task}")
         if (task_time.date() == (now.date() + timedelta(days=1))):  # and now.hour == 19:
-            logger.error(f"5; Task time: {task_time.date()}")
+            logger.debug(f"5; Task time: {task_time.date()}")
             tasks_to_remind.append(task)
         elif (task_time - now).total_seconds() <= 12 * 3600 and task.get("status") != "overdue":
-            logger.error(f"6; Task: {task}")
+            logger.debug(f"6; Task: {task}")
             tasks_to_remind.append(task)
     if not tasks_to_remind:
         return
