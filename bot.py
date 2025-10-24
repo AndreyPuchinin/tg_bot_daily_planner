@@ -61,8 +61,8 @@ CANCEL_ACTION_NAMES = {
     "cancel_daytasks": "/daytasks",
     "cancel_weekbydate": "/weekbydate",
     "settings_cancel": "/settings",
-    "settings_urgent_threshold": "/settings",
-    "settings_daily_hour": "/settings"
+    "cancel_settings_urgent_threshold": "/settings",
+    "cancel_settings_daily_hour": "/settings"
 }
 
 # Автоматически формируем множество допустимых callback_data-действий для отмены
@@ -446,8 +446,9 @@ def settings_callback_handler(call):
     # Подтверждаем нажатие
     bot.answer_callback_query(call.id)
 
+    # НЕ НУЖНО?..
     # Добавляем в режим /settings (для отмены самого меню, покидаем меню)
-    user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
+    # user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
 
     logger.debug("callback_query_handler(): 7")
 
