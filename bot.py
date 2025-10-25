@@ -222,7 +222,7 @@ def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
     )
     for admin_id in ADMIN_USER_ID:
         try:
-            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
+            admin_bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
         except Exception as e:
             logger.critical(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
