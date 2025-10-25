@@ -203,24 +203,6 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
     except Exception as e:
         logger.critical(f"❌ Не удалось уведомить пользователя {user_id}: {e}")
 
-def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
-    """Отправляет всем админам уведомление о проблеме с БД."""
-    message_to_admins = (
-        f"‼️ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
-        f"но произошла ошибка при работе с Базой Данных!\n"
-        f"Подробнее об ошибке:\n{error_details}"
-    )
-    logger.error(error_details)
-    for admin_id in ADMIN_USER_ID:
-        try:
-            if user_name != "" and user_id != 0 and command != "":
-                bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
-                bot.send_message(user_id, "⚠ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
-                # Отправляем сообщение об отмене нужного режима ввода в чат (не редактируем старое!)
-                bot.send_message(user_id, f"❌ Режим ввода /{command} отменён.")
-        except Exception as e:
-            logger.critical(f"Не удалось отправить уведомление админу {admin_id}: {e}")
-
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
     if is_rate_limited(str(message.from_user.id)):
