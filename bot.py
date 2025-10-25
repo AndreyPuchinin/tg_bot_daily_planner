@@ -1,5 +1,6 @@
 from io import BytesIO
 from datetime import datetime, timedelta
+from collections import defaultdict
 from flask import Flask, request # НАСТРОЙКА WEBHOOK ДЛЯ RENDER
 import threading
 import logging
@@ -39,6 +40,11 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 # WEB-HOOK
 app = Flask(__name__)
+
+# Защита от спама: {user_id: [timestamp1, timestamp2, ...]}
+user_request_timestamps = defaultdict(list)
+REQUEST_LIMIT = 10  # максимум 10 команд
+REQUEST_WINDOW = 60 # за 60 секунд
 
 # Logging
 # Настраиваем ТОЛЬКО свой логгер
@@ -199,6 +205,12 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
 
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
@@ -253,6 +265,12 @@ def is_data_empty(data: dict) -> bool:
 
 @bot.message_handler(commands=["jsonin"])
 def jsonin_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
@@ -433,137 +451,33 @@ def universal_callback_handler(call):
     # --- Если action неизвестен ---
     bot.answer_callback_query(call.id, "⚠️ Неизвестное действие", show_alert=True)
 
-"""# ФУНКЦИЯ ОТМЕНЫ КОМАНДЫ
-@bot.callback_query_handler(func=lambda call: call.data in CANCEL_ACTIONS)
-def universal_cancel_handler(call):
-    user_id = str(call.from_user.id)
-    action = call.data
-    command_name = CANCEL_ACTION_NAMES[action]
-
-    # Определяем, находится ли пользователь в нужном режиме
-    in_mode = False
-    if action == "cancel_task":
-        in_mode = (user_id in user_awaiting_task_text) or (user_id in user_awaiting_datetime)
-    elif action == "cancel_jsonin":
-        in_mode = user_id in user_awaiting_json_file
-    elif action == "cancel_feedback":
-        in_mode = user_id in user_awaiting_feedback
-    elif action == "cancel_daytasks":
-        in_mode = user_id in user_awaiting_daytasks_date
-    elif action == "cancel_weekbydate":
-        in_mode = user_id in user_awaiting_weekbydate_input
-    elif action == "settings_cancel":
-        in_mode = user_id in user_in_settings_menu
-    elif action in ("settings_urgent_threshold", "settings_daily_hour"):
-        in_mode = user_id in user_awaiting_settings_input
-            
-    if in_mode:
-        # Выходим из режима
-        if action == "cancel_task":
-            user_awaiting_task_text.pop(user_id, None)
-            user_awaiting_datetime.pop(user_id, None)
-        elif action == "cancel_jsonin":
-            user_awaiting_json_file.discard(user_id)
-        elif action == "cancel_feedback":
-            user_awaiting_feedback.discard(user_id)
-        elif action == "cancel_daytasks":
-            user_awaiting_daytasks_date.discard(user_id)
-        elif action == "cancel_weekbydate":
-            user_awaiting_weekbydate_input.discard(user_id)
-        elif action == "settings_cancel":
-            user_in_settings_menu.discard(user_id)
-        elif action in ("settings_urgent_threshold", "settings_daily_hour"):
-            user_awaiting_settings_input.pop(user_id, None)
-
-        # Отправляем сообщение в чат (не редактируем старое!)
-        bot.send_message(call.message.chat.id, f"❌ Режим ввода {command_name} отменён.")
-        # Подтверждаем нажатие кнопки (убираем "часики")
-        bot.answer_callback_query(call.id)
-    else:
-        # Пользователь уже не в режиме → показываем всплывающее уведомление
-        bot.answer_callback_query(
-            call.id,
-            f"Режим ввода команды {command_name} уже был отменён!",
-            show_alert=False  # можно True, если хочешь модальное окно
-        )
-
-# ФУНКЦИЯ КНОПКИ
-@bot.callback_query_handler(func=lambda call: call.data.startswith("settings_"))
-def settings_callback_handler(call):
-    user_name = call.from_user.first_name or "Пользователь"
-    if call.chat.type != "private":
-        stop_command_in_group(call.chat.id, call.from_user.first_name or "Пользователь")
-        return
-
-    logger.debug("callback_query_handler(): 1")
-    
-    user_id = str(call.from_user.id)
-    chat_id = call.message.chat.id
-    action = call.data
-
-    if action == "settings_cancel":
-        if user_id in user_in_settings_menu:
-            user_in_settings_menu.discard(user_id)
-            bot.send_message(chat_id, "❌ Режим ввода /settings отменён.")
-        else:
-            bot.answer_callback_query(call.id, "Режим /settings уже отменён!", show_alert=False)
-        bot.answer_callback_query(call.id)
-        return
-    
-    # 🔴 КРИТИЧЕСКАЯ ПРОВЕРКА: пользователь должен быть в меню /settings
-    if user_id not in user_in_settings_menu:
-        logger.debug("callback_query_handler(): 3")
-        bot.answer_callback_query(
-            call.id,
-            "Режим ввода команды /settings уже был отменён!",
-            show_alert=False
-        )
-        return
-
-    # Загружаем данные ДО использования, чтобы получить текущее значение
-    data = load_data(call.from_user.first_name, call.chat.id, "settings")
-    if data is None or user_id not in data:
-        logger.debug("callback_query_handler(): 4")
-        bot.send_message(chat_id, "Сначала отправьте /start")
-        bot.answer_callback_query(call.id)
-        return
-
-    # Определяем, какой параметр редактируется
-    if action == "settings_urgent_threshold":
-        param_name = "urgent_threshold"
-        current_val = data.get("settings", {}).get("urgent_threshold_hours", 12)
-        prompt = f"Введите новый порог срочности (в часах).\nТекущее значение: {current_val}\nДопустимо: от 1 до 168."
-    elif action == "settings_daily_hour":
-        param_name = "daily_hour"
-        current_val = data.get("settings", {}).get("daily_reminder_hour", 6)
-        prompt = f"Введите час ежедневного напоминания (по МСК).\nТекущее значение: {current_val}\nДопустимо: от 0 до 23."
-    else:
-        bot.answer_callback_query(call.id, "⚠️Нажата некорректная кнопка!", show_alert=True)
-        logger.debug("callback_query_handler(): 5")
-        return
-
-    logger.debug("callback_query_handler(): 6")
-
-    # Сохраняем состояние
-    user_awaiting_settings_input[user_id] = param_name
-
-    # Отправляем сообщение с запросом значения
-    bot.send_message(
-        chat_id,
-        prompt,
-        reply_markup=make_cancel_button(f"cancel_settings_{param_name}")
-    )
-
-    # Подтверждаем нажатие
-    bot.answer_callback_query(call.id)
-
-    # НЕ НУЖНО?..
-    # Добавляем в режим /settings (для отмены самого меню, покидаем меню)
-    # user_in_settings_menu.discard(user_id)  # вышли из меню, теперь в подрежиме ввода
-
-    logger.debug("callback_query_handler(): 7")"""
-
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+def is_rate_limited(user_id: str) -> bool:
+    now = time.time()
+    # Удаляем устаревшие запросы (старше REQUEST_WINDOW секунд)
+    user_request_timestamps[user_id] = [
+        ts for ts in user_request_timestamps[user_id] if now - ts < REQUEST_WINDOW
+    ]
+    # Проверяем, превышен ли лимит
+    if len(user_request_timestamps[user_id]) >= REQUEST_LIMIT:
+        return True
+    # Добавляем текущий запрос
+    user_request_timestamps[user_id].append(now)
+    return False
+
+def cleanup_old_requests():
+    while True:
+        time.sleep(3600)  # раз в час
+        now = time.time()
+        to_delete = []
+        for user_id, timestamps in user_request_timestamps.items():
+            # Оставляем только активные записи
+            user_request_timestamps[user_id] = [ts for ts in timestamps if now - ts < REQUEST_WINDOW]
+            if not user_request_timestamps[user_id]:
+                to_delete.append(user_id)
+        for user_id in to_delete:
+            del user_request_timestamps[user_id]
+
 def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.date, logger = None) -> list:
     """Возвращает отсортированный по времени список СТРОК с задачами на указанную дату."""
     raw_tasks = []
@@ -705,6 +619,12 @@ def generate_today_date():
 # === ОСНОВНЫЕ КОМАНДЫ ПОЛЬЗОВАТЕЛЯ ===
 @bot.message_handler(commands=["start"])
 def start_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "Пользователь"
     if message.chat.type != "private":
@@ -752,6 +672,12 @@ def start_handler(message):
 
 @bot.message_handler(commands=["info"])
 def info_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
         command_in_group(user_name)
@@ -791,6 +717,12 @@ def info_handler(message):
 
 @bot.message_handler(commands=["feedback"])
 def feedback_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
@@ -844,6 +776,12 @@ def handle_feedback_message(msg):
 
 @bot.message_handler(commands=["overdue"])
 def overdue_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
@@ -889,6 +827,12 @@ def overdue_handler(message):
 
 @bot.message_handler(commands=["settings"])
 def settings_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
@@ -923,6 +867,12 @@ def settings_handler(message):
 
 @bot.message_handler(commands=["daytasks"])
 def daytasks_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(message.from_user.id)
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
@@ -938,6 +888,12 @@ def daytasks_handler(message):
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_daytasks_date)
 def handle_daytasks_date_input(msg):
+    if is_rate_limited(str(msg.from_user.id)):
+        bot.send_message(
+            msg.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(msg.from_user.id)
     user_name = str(msg.from_user.first_name)
     chat_id = msg.chat.id
@@ -984,6 +940,12 @@ def handle_daytasks_date_input(msg):
 
 @bot.message_handler(commands=["today"])
 def today_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
@@ -1016,6 +978,12 @@ def today_handler(message):
 
 @bot.message_handler(commands=["tomorrow"])
 def tomorrow_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
@@ -1058,6 +1026,12 @@ def tomorrow_handler(message):
 
 @bot.message_handler(commands=["week"])
 def week_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
@@ -1124,6 +1098,12 @@ def week_handler(message):
 
 @bot.message_handler(commands=["weekbydate"])
 def weekbydate_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
@@ -1140,6 +1120,12 @@ def weekbydate_handler(message):
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_weekbydate_input)
 def handle_weekbydate_input(msg):
+    if is_rate_limited(str(msg.from_user.id)):
+        bot.send_message(
+            msg.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
     user_name = msg.from_user.first_name or "Пользователь"
@@ -1207,6 +1193,12 @@ def handle_weekbydate_input(msg):
 
 @bot.message_handler(commands=["task"])
 def task_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
     if message.chat.type != "private":
@@ -1237,6 +1229,12 @@ def task_handler(message):
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_task_text)
 def task_text_input(msg):
+    if is_rate_limited(str(msg.from_user.id)):
+        bot.send_message(
+            msg.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
     user_name = msg.from_user.first_name or "Пользователь"
@@ -1261,6 +1259,12 @@ def task_text_input(msg):
 
 @bot.message_handler(func=lambda message: str(message.from_user.id) in user_awaiting_datetime)
 def datetime_input_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
     user_name = message.from_user.first_name or "Пользователь"
@@ -1391,6 +1395,10 @@ if __name__ == '__main__':
     # Запускаем напоминания в фоновом потоке
     reminder_thread = threading.Thread(target=reminder_daemon, daemon=True)
     reminder_thread.start()
+
+    # Запускаем таймер на очистку списка запросов от юзеров против ддос-атак
+    cleanup_thread = threading.Thread(target=cleanup_old_requests, daemon=True)
+    cleanup_thread.start()
 
     # Устанавливаем webhook
     bot.remove_webhook()
