@@ -1287,9 +1287,10 @@ def datetime_input_handler(message):
         bot.send_message(
             chat_id,
             f"❌ Время задачи не может быть раньше текущего.\n"
-            f"Сейчас: {current_time_str} (МСК)\n"
+            f"Сейчас: <i>{current_time_str}</i> (МСК)\n"
             f"Укажи время позже этого.",
-            reply_markup=make_cancel_button("cancel_task")
+            reply_markup=make_cancel_button("cancel_task"),
+            parse_mode="HTML"
         )
         return
 
