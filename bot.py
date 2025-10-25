@@ -194,7 +194,7 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
     for admin_id_str in ADMIN_USER_ID:
         try:
             admin_id = int(admin_id_str.strip())
-            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
+            admin_id.send_message(admin_id, message_to_admins, parse_mode="HTML")
         except ValueError:
             logger.error(f"Некорректный ID админа: '{admin_id_str}'")
         except telebot.apihelper.ApiTelegramException as e:
