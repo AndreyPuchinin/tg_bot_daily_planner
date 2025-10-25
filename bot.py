@@ -1317,7 +1317,6 @@ def datetime_input_handler(message):
         f"{text}\n"
         f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}"
     )
-    )
 
 # === НАПОМИНАНИЯ ===
 def check_and_send_reminders(bot, user_id, chat_id, data):
