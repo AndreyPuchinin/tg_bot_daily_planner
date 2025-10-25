@@ -569,7 +569,7 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
     # Сортируем по времени
     raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
     # Преобразуем в строки
-    return [f"• {task['text']} ({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})" for task in raw_tasks]
+    return [f"• {task['text']} <b>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</b>" for task in raw_tasks]
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
 def settings_value_input(msg):
@@ -974,7 +974,7 @@ def today_handler(message):
     if not tasks:
         bot.send_message(message.chat.id, f"📅 На сегодня ({today.strftime('%d.%m.%Y')}) нет запланированных задач.")
     else:
-        header = f"📋 Задачи на сегодня ({today.strftime('%d.%m.%Y')}):\n\n"
+        header = f"📋 Задачи на сегодня <b>({today.strftime('%d.%m.%Y')})</b>:\n\n"
         full_message = header + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message)
 
