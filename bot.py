@@ -1264,11 +1264,9 @@ def datetime_input_handler(message):
     user_id = str(message.from_user.id)
     chat_id = message.chat.id
     user_name = message.from_user.first_name or "Пользователь"
-    data = load_data(user_name, message.from_user.id, "task")
-    if data == None:
-        return
-    user_name = message.from_user.first_name or "Пользователь"
     datetime_str = message.text.strip()
+
+    # Парсим дату
     try:
         task_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
     except ValueError:
@@ -1281,26 +1279,44 @@ def datetime_input_handler(message):
             reply_markup=make_cancel_button("cancel_task")
         )
         return
-    text = user_awaiting_datetime[user_id]
-    data = load_data(user_name, message.from_user.id, "task")
-    if user_id not in data:
+
+    # ВАЛИДАЦИЯ: дата не должна быть в прошлом или сейчас
+    now = now_msk()
+    if task_datetime <= now:
+        current_time_str = now.strftime("%Y-%m-%d %H:%M")
+        bot.send_message(
+            chat_id,
+            f"❌ Время задачи не может быть раньше текущего.\n"
+            f"Сейчас: {current_time_str} (МСК)\n"
+            f"Укажи время позже этого.",
+            reply_markup=make_cancel_button("cancel_task")
+        )
+        return
+
+    # Загружаем данные
+    data = load_data(user_name, chat_id, "task")
+    if data is None or user_id not in data:
         bot.send_message(chat_id, "Сначала отправь /start")
         return
+
+    text = user_awaiting_datetime[user_id]
     new_task = {
         "text": text,
         "datetime": task_datetime.isoformat(),
         "status": "waiting",
         "reminded": False,
-        "created_at": now_msk().isoformat()
+        "created_at": now.isoformat()
     }
     data[user_id]["tasks"].append(new_task)
     save_data(data)
     del user_awaiting_datetime[user_id]
+
     bot.send_message(
         chat_id,
         f"✅ Задача сохранена!\n"
         f"{text}\n"
         f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}"
+    )
     )
 
 # === НАПОМИНАНИЯ ===
