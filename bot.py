@@ -942,9 +942,9 @@ def handle_daytasks_date_input(msg):
     if not tasks_on_date:
         bot.send_message(chat_id, f"📅 На {date_str} нет запланированных задач.")
     else:
-        header = f"📋 Задачи на {date_str}:\n\n"
-        full_message = header + "\n\n".join(tasks_on_date)
-        send_long_message(bot, chat_id, full_message)
+        header = f"📋 Задачи на <b>{date_str}</b>:\n\n"
+        full_message = header + "\n".join(tasks_on_date)
+        send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["today"])
 def today_handler(message):
