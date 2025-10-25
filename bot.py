@@ -34,6 +34,26 @@ else:
 TIMEZONE_OFFSET = 3  # UTC+3 (Москва)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
+# Админ-бот (только для отправки сообщений админам)
+admin_bot_token = os.getenv("ADMIN_BOT_TOKEN")
+if not admin_bot_token:
+    logger.warning("⚠️ ADMIN_BOT_TOKEN не задан. Админ-уведомления будут отключены.")
+    admin_bot = None
+else:
+    admin_bot = telebot.TeleBot(admin_bot_token)
+
+# Бот-напоминалка (только для отправки напоминаний)
+reminder_bot_token = os.getenv("REMINDER_BOT_TOKEN")
+if not reminder_bot_token:
+    logger.warning("⚠️ REMINDER_BOT_TOKEN не задан. Напоминания будут через основного бота.")
+    reminder_bot = None
+else:
+    reminder_bot = telebot.TeleBot(reminder_bot_token)
+
+# ПРОВЕРИТЬ, ЧТО АДМИНОВ МОЖЕТ БЫТЬ МНОГО!!!
+# ПРОВЕРИТЬ, ЧТО АДМИНЫ ТЕ ЖЕ!!!
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+
 # Работа с гистом с гитхаба (переносим БД туда)
 GIST_ID = os.getenv("GIST_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -158,32 +178,32 @@ def save_data(data):
     except Exception as e:
         logger.critical(f"❌Ошибка при сохранении данных в Gist: {e}")
         
-"""def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-def save_data(data):
-    temp_file = DATA_FILE + ".tmp"
-    with open(temp_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(temp_file, DATA_FILE)"""
-
 # === КОМАНДЫ АДМИНА ===
-def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
-    """Отправляет всем админам уведомление о регистрации нового пользователя."""
+def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     message_to_admins = (
-        f"🆕 Новый пользователь зарегистрировался в боте!\n\n"
-        f"<b>Имя: <i>{user_name}</i></b>\n"
-        f"<i><b>ID:</b> {user_id}</i>\n"
-        f"<i><b>Chat ID:</b> {chat_id}</i>"
+        f"‼️ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
+        f"но произошла ошибка при работе с Базой Данных!
+"
+        f"Подробнее об ошибке:
+{error_details}"
     )
-    for admin_id in ADMIN_USER_ID:
-        try:
-            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
-        except Exception as e:
-            logger.critical(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+    logger.error(error_details)
+
+    # Отправляем через админ-бота, если он есть
+    target_bot = admin_bot if admin_bot else bot
+    target_chat = ADMIN_CHAT_ID if ADMIN_CHAT_ID else user_id  # fallback на пользователя
+
+    try:
+        target_bot.send_message(target_chat, message_to_admins, parse_mode="HTML")
+    except Exception as e:
+        logger.critical(f"❌ Не удалось отправить админ-уведомление: {e}")
+
+    # Пользователю всё равно отправляем через основного бота
+    try:
+        bot.send_message(user_id, "⚠️ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
+        bot.send_message(user_id, f"❌ Режим ввода /{command} отменён.")
+    except Exception as e:
+        logger.critical(f"❌ Не удалось уведомить пользователя {user_id}: {e}")
 
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     """Отправляет всем админам уведомление о проблеме с БД."""
@@ -576,12 +596,12 @@ def settings_value_input(msg):
         # Убедимся, что пользователь всё ещё в меню
         user_in_settings_menu.add(user_id)
 
-def send_long_message(bot, chat_id, text, parse_mode=None):
+def send_long_message(bot_instance, chat_id, text, parse_mode=None):
     if not text.strip():
         return
     max_len = 4000
     for i in range(0, len(text), max_len):
-        bot.send_message(chat_id, text[i:i + max_len], parse_mode=parse_mode)
+        bot_instance.send_message(chat_id, text[i:i + max_len], parse_mode=parse_mode)
 
 def generate_example_datetime():
     now = now_msk()
@@ -1367,7 +1387,8 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     full_message = "‼Напоминаю!\n\n" + tasks_block
 
     save_data(data)
-    send_long_message(bot, chat_id, full_message)
+    target_bot = reminder_bot if reminder_bot else bot
+    send_long_message(target_bot, chat_id, full_message)
 
 def reminder_daemon():
     while True:
