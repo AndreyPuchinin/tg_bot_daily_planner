@@ -926,7 +926,7 @@ def handle_daytasks_date_input(msg):
 
     # Загружаем данные
     try:
-        data = load_data(user_name, message.from_user.id, "daytasks")
+        data = load_data(user_name, msg.from_user.id, "daytasks")
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /daytasks: {e}")
         bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -1123,7 +1123,7 @@ def handle_weekbydate_input(msg):
         return
 
     try:
-        data = load_data(user_name, message.from_user.id, "weekbydate")
+        data = load_data(user_name, msg.from_user.id, "weekbydate")
         if data is None or user_id not in data:
             bot.send_message(chat_id, "Сначала отправьте /start")
             return
