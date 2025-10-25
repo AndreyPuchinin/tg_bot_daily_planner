@@ -649,7 +649,7 @@ def settings_value_input(msg):
             telebot.types.InlineKeyboardButton("🕒 Время ежедневного авто-напоминания (час)", callback_data="settings_daily_hour")
         )
         markup.add(
-            telebot.types.InlineKeyboardButton("❌ Отмена", callback_data="settings_cancel")
+            telebot.types.InlineKeyboardButton("❌ Отмена / OK", callback_data="settings_cancel")
         )
         bot.send_message(
             chat_id,
@@ -912,7 +912,7 @@ def settings_handler(message):
         telebot.types.InlineKeyboardButton("🕒 Время ежедневного авто-напоминания (час)", callback_data="settings_daily_hour")
     )
     markup.add(
-        telebot.types.InlineKeyboardButton("❌ Отмена", callback_data="settings_cancel")
+        telebot.types.InlineKeyboardButton("❌ Отмена / OK", callback_data="settings_cancel")
     )
 
     bot.send_message(
