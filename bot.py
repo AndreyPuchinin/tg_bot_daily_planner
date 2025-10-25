@@ -551,7 +551,7 @@ def settings_callback_handler(call):
     logger.debug("callback_query_handler(): 7")"""
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
-def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.date) -> list:
+def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.date, logger = None) -> list:
     """Возвращает отсортированный по времени список СТРОК с задачами на указанную дату."""
     raw_tasks = []
     for task in data.get(user_id, {}).get("tasks", []):
@@ -967,7 +967,7 @@ def today_handler(message):
     today = now_msk().date()
     logger.error(f"today = {today}")
     
-    tasks = get_sorted_tasks_on_date(data, message.from_user.id, today)
+    tasks = get_sorted_tasks_on_date(data, message.from_user.id, today, logger)
 
     logger.error(f"tasks = {tasks}")
 
