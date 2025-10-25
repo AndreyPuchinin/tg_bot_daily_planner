@@ -643,10 +643,10 @@ def settings_value_input(msg):
         # Повторно показываем меню настроек
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(
-            telebot.types.InlineKeyboardButton("⏳ Порог срочности\n(часы)", callback_data="settings_urgent_threshold")
+            telebot.types.InlineKeyboardButton("⏳ Порог срочности", callback_data="settings_urgent_threshold")
         )
         markup.add(
-            telebot.types.InlineKeyboardButton("🕒 Время ежедневного\nавто-напоминания\n(час)", callback_data="settings_daily_hour")
+            telebot.types.InlineKeyboardButton("🕒 Ежедневное напоминание", callback_data="settings_daily_hour")
         )
         markup.add(
             telebot.types.InlineKeyboardButton("❌ Отмена / OK", callback_data="settings_cancel")
@@ -906,10 +906,10 @@ def settings_handler(message):
     # Создаём inline-клавиатуру
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(
-        telebot.types.InlineKeyboardButton("⏳ Порог срочности\n(часы)", callback_data="settings_urgent_threshold")
+        telebot.types.InlineKeyboardButton("⏳ Порог срочности", callback_data="settings_urgent_threshold")
     )
     markup.add(
-        telebot.types.InlineKeyboardButton("🕒 Время ежедневного\nавто-напоминания\n(час)", callback_data="settings_daily_hour")
+        telebot.types.InlineKeyboardButton("🕒 Ежедневное напоминания", callback_data="settings_daily_hour")
     )
     markup.add(
         telebot.types.InlineKeyboardButton("❌ Отмена / OK", callback_data="settings_cancel")
