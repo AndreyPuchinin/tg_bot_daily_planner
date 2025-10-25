@@ -199,15 +199,18 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
         try:
             admin_id = int(admin_id_str.strip())
             admin_bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
+            bot.send_message(user_id, "⚠️ Простите, команда не может быть выполнена - БД поверждена!\n"
+                             "Мы уже направили администраторам оповещение о вашей неудаче.\n"
+                             "Если хотите, обратитесь к администраторам напрямую (/feedback)")
         except ValueError:
-            logger.error(f"Некорректный ID админа: '{admin_id_str}'")
+            logger.error(f"❌ Некорректный ID админа: '{admin_id_str}'")
         except telebot.apihelper.ApiTelegramException as e:
             if "chat not found" in str(e):
                 logger.critical(f"❌ Админ {admin_id_str} не начал диалог с ботом! Напишите /start.")
             else:
-                logger.critical(f"Ошибка Telegram API для админа {admin_id_str}: {e}")
+                logger.critical(f"❌ Ошибка Telegram API для админа {admin_id_str}: {e}")
         except Exception as e:
-            logger.critical(f"Неизвестная ошибка при отправке админу {admin_id_str}: {e}")
+            logger.critical(f"❌ Неизвестная ошибка при отправке админу {admin_id_str}: {e}")
 
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
