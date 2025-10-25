@@ -180,6 +180,10 @@ def save_data(data):
         
 # === КОМАНДЫ АДМИНА ===
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
+    # Если вызов из напоминания (reminder_daemon), игнорируем вызов и завершаемся
+    if user_name == "" or user_id == 0 or command == "":
+        return
+    
     message_to_admins = (
         f"‼️ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
         f"но произошла ошибка при работе с Базой Данных!"
