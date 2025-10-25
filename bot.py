@@ -187,21 +187,23 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
     )
     logger.error(error_details)
 
-    # Отправляем через админ-бота, если он есть
-    target_bot = admin_bot if admin_bot else bot
-    target_chat = ADMIN_CHAT_ID if ADMIN_CHAT_ID else user_id  # fallback на пользователя
+    if not ADMIN_USER_ID:
+        logger.warning("Нет админов для уведомления (ADMIN_USER_ID пуст)")
+        return
 
-    try:
-        target_bot.send_message(target_chat, message_to_admins, parse_mode="HTML")
-    except Exception as e:
-        logger.critical(f"❌ Не удалось отправить админ-уведомление: {e}")
-
-    # Пользователю всё равно отправляем через основного бота
-    try:
-        bot.send_message(user_id, "⚠️ Ошибка при работе с Базой Данных! Пожалуйста, обратитесь к админам.")
-        bot.send_message(user_id, f"❌ Режим ввода /{command} отменён.")
-    except Exception as e:
-        logger.critical(f"❌ Не удалось уведомить пользователя {user_id}: {e}")
+    for admin_id_str in ADMIN_USER_ID:
+        try:
+            admin_id = int(admin_id_str.strip())
+            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
+        except ValueError:
+            logger.error(f"Некорректный ID админа: '{admin_id_str}'")
+        except telebot.apihelper.ApiTelegramException as e:
+            if "chat not found" in str(e):
+                logger.critical(f"❌ Админ {admin_id_str} не начал диалог с ботом! Напишите /start.")
+            else:
+                logger.critical(f"Ошибка Telegram API для админа {admin_id_str}: {e}")
+        except Exception as e:
+            logger.critical(f"Неизвестная ошибка при отправке админу {admin_id_str}: {e}")
 
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
@@ -761,12 +763,14 @@ def handle_feedback_message(msg):
 
     # Рассылаем всем админам
     success_count = 0
-    for admin_id in ADMIN_USER_ID:
+    for admin_id_str in ADMIN_USER_ID:
         try:
-            bot.send_message(admin_id, admin_message, parse_mode="HTML")
-            success_count += 1
+            admin_id = int(admin_id_str)  # всегда работаем с int
+            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
+        except ValueError:
+            logger.error(f"Некорректный ADMIN_USER_ID: {admin_id_str}")
         except Exception as e:
-            logger.error(f"Не удалось отправить фидбек админу {admin_id}: {e}")
+            logger.critical(f"Не удалось отправить уведомление админу {admin_id_str}: {e}")
 
     # Подтверждаем пользователю
     if success_count > 0:
