@@ -876,7 +876,7 @@ def settings_handler(message):
 
     bot.send_message(
         message.chat.id,
-        "⚙️ Выберите параметр для настройки:",
+        "⚙️ Выберите параметр для настройки (/start = сброс):",
         reply_markup=markup
     )
 
