@@ -41,8 +41,21 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 app = Flask(__name__)
 
 # Logging
-logging.basicConfig(level=logging.DEBUG)
+# Настраиваем ТОЛЬКО свой логгер
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Добавляем обработчик, если его ещё нет (например, в консоль)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(levelname)s:%(name)s: %(message)s'))
+    logger.addHandler(handler)
+
+# Подавляем шум от urllib3 и requests
+# Чтобы вывод логов в Рендере был ПОНЯТНЫМ
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("telebot").setLevel(logging.WARNING)
 
 # Состояния режимов ввода команд
 user_awaiting_json_file = set()
@@ -784,7 +797,7 @@ def handle_feedback_message(msg):
 
     # Формируем сообщение для админов
     admin_message = (
-        f"📩 Пользователь {user_name} (ID={user_id}) отправил фидбек:\n\n"
+        f"📩 Пользователь <b>{user_name} (ID={user_id})</b> отправил фидбек:\n\n"
         f"{feedback_text}"
     )
 
@@ -792,7 +805,7 @@ def handle_feedback_message(msg):
     success_count = 0
     for admin_id in ADMIN_USER_ID:
         try:
-            bot.send_message(admin_id, admin_message)
+            bot.send_message(admin_id, admin_message, parse_mode="HTML")
             success_count += 1
         except Exception as e:
             logger.error(f"Не удалось отправить фидбек админу {admin_id}: {e}")
