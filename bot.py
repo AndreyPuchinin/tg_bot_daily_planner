@@ -556,7 +556,7 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
     raw_tasks = []
     for task in data.get(user_id, {}).get("tasks", []):
         if (task.get("status") == "completed") and (task.get("status") != True):
-            logger.error(f"status = {task.get(\"status\")}")
+            logger.error(f"status = {task.get('status')}")
             continue
         try:
             task_dt = datetime.fromisoformat(task["datetime"])
