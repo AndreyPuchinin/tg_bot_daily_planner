@@ -212,6 +212,20 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
         except Exception as e:
             logger.critical(f"❌ Неизвестная ошибка при отправке админу {admin_id_str}: {e}")
 
+def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
+    """Отправляет всем админам уведомление о регистрации нового пользователя."""
+    message_to_admins = (
+        f"🆕 Новый пользователь зарегистрировался в боте!\n\n"
+        f"<b>Имя: <i>{user_name}</i></b>\n"
+        f"<i><b>ID:</b> {user_id}</i>\n"
+        f"<i><b>Chat ID:</b> {chat_id}</i>"
+    )
+    for admin_id in ADMIN_USER_ID:
+        try:
+            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
+        except Exception as e:
+            logger.critical(f"Не удалось отправить уведомление админу {admin_id}: {e}")
+
 @bot.message_handler(commands=["jsonout"])
 def jsonout_handler(message):
     if is_rate_limited(str(message.from_user.id)):
