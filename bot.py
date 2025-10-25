@@ -589,7 +589,7 @@ def settings_value_input(msg):
     user_id = str(msg.from_user.id)
     chat_id = msg.chat.id
     param = user_awaiting_settings_input[user_id]
-
+    
     try:
         value = int(msg.text.strip())
     except ValueError:
@@ -601,7 +601,7 @@ def settings_value_input(msg):
         return
 
     # Загружаем данные
-    data = load_data(msg.from_user.first_name, msg.from_user.id, "settings")
+    data = load_data(msg.from_user.first_name, chat_id, "settings")
     if data is None or user_id not in data:
         bot.send_message(chat_id, "Сначала отправьте /start")
         user_awaiting_settings_input.pop(user_id, None)
@@ -618,7 +618,7 @@ def settings_value_input(msg):
             bot.send_message(
                 chat_id,
                 "❌ Значение должно быть от 1 до 168.",
-                reply_markup=make_cancel_button("settings_urgent_threshold")
+                reply_markup=make_cancel_button(f"cancel_settings_{param}")
             )
     elif param == "daily_hour":
         if 0 <= value <= 23:
@@ -629,13 +629,35 @@ def settings_value_input(msg):
             bot.send_message(
                 chat_id,
                 "❌ Час должен быть от 0 до 23.",
-                reply_markup=make_cancel_button("settings_daily_hour")
+                reply_markup=make_cancel_button(f"cancel_settings_{param}")
             )
 
     if valid:
         save_data(data)
         bot.send_message(chat_id, success_msg)
+
+        # ВАЖНО: не удаляем из user_in_settings_menu!
+        # Но удаляем из режима ввода значения
         user_awaiting_settings_input.pop(user_id, None)
+
+        # Повторно показываем меню настроек
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(
+            telebot.types.InlineKeyboardButton("⏳ Порог срочности (часы)", callback_data="settings_urgent_threshold")
+        )
+        markup.add(
+            telebot.types.InlineKeyboardButton("🕒 Время ежедневного авто-напоминания (час)", callback_data="settings_daily_hour")
+        )
+        markup.add(
+            telebot.types.InlineKeyboardButton("❌ Отмена", callback_data="settings_cancel")
+        )
+        bot.send_message(
+            chat_id,
+            "⚙️ Выберите параметр для настройки:",
+            reply_markup=markup
+        )
+        # Убедимся, что пользователь всё ещё в меню
+        user_in_settings_menu.add(user_id)
 
 def send_long_message(bot, chat_id, text, parse_mode=None):
     if not text.strip():
