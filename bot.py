@@ -452,6 +452,8 @@ def universal_callback_handler(call):
     bot.answer_callback_query(call.id, "⚠️ Неизвестное действие", show_alert=True)
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+
+# против ддос-атаки
 def is_rate_limited(user_id: str) -> bool:
     now = time.time()
     # Удаляем устаревшие запросы (старше REQUEST_WINDOW секунд)
@@ -465,6 +467,7 @@ def is_rate_limited(user_id: str) -> bool:
     user_request_timestamps[user_id].append(now)
     return False
 
+# против ддос-атаки
 def cleanup_old_requests():
     while True:
         time.sleep(3600)  # раз в час
