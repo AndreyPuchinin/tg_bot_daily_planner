@@ -556,15 +556,15 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
     raw_tasks = []
     for task in data.get(user_id, {}).get("tasks", []):
         if (task.get("status") == "completed") and (task.get("status") != True):
-            logger.error(f"status = {task.get('status')}")
+            # logger.error(f"status = {task.get('status')}")
             continue
         try:
             task_dt = datetime.fromisoformat(task["datetime"])
-            logger.error(f"date1 = {task_dt.date()}, date2 = {target_date}")
+            # logger.error(f"date1 = {task_dt.date()}, date2 = {target_date}")
             if task_dt.date() == target_date:
                 raw_tasks.append(task)
         except (ValueError, KeyError) as e:
-            logger.error(f"Error!: {e}")
+            # logger.error(f"Error!: {e}")
             continue
     # Сортируем по времени
     raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
@@ -937,7 +937,7 @@ def handle_daytasks_date_input(msg):
         return
 
     # Ищем задачи на эту дату
-    tasks_on_date = get_sorted_tasks_on_date(data, msg.from_user.id, target_date)
+    tasks_on_date = get_sorted_tasks_on_date(data, str(msg.from_user.id), target_date)
 
     if not tasks_on_date:
         bot.send_message(chat_id, f"📅 На {date_str} нет запланированных задач.")
@@ -967,7 +967,7 @@ def today_handler(message):
     today = now_msk().date()
     logger.error(f"today = {today}")
     
-    tasks = get_sorted_tasks_on_date(data, message.from_user.id, today, logger)
+    tasks = get_sorted_tasks_on_date(data, str(message.from_user.id), today, logger)
 
     logger.error(f"tasks = {tasks}")
 
@@ -1004,7 +1004,7 @@ def tomorrow_handler(message):
 
     # logger.debug("4")
     tomorrow = (now_msk().date() + timedelta(days=1))
-    tasks = get_sorted_tasks_on_date(data, message.from_user.id, tomorrow)
+    tasks = get_sorted_tasks_on_date(data, str(message.from_user.id), tomorrow)
 
     # logger.debug("5")
 
