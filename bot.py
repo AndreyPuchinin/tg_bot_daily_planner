@@ -563,7 +563,8 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
             logger.error(f"date1 = {task_dt.date()}, date2 = {target_date}")
             if task_dt.date() == target_date:
                 raw_tasks.append(task)
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
+            logger.error(f"Error!: {e}")
             continue
     # Сортируем по времени
     raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
