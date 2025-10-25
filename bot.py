@@ -888,6 +888,7 @@ def daytasks_handler(message):
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
+    data = load_data(message.from_user.first_name, message.from_user.id, "daytasks")
     example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
     bot.send_message(
         message.chat.id,
@@ -1118,6 +1119,7 @@ def weekbydate_handler(message):
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
+    data = load_data(message.from_user.first_name, message.from_user.id, "weekbydate")
     user_id = str(message.from_user.id)
     # Пример даты — сегодня + 7 дней
     example_date = (now_msk().date() + timedelta(days=7)).strftime("%Y-%m-%d")
