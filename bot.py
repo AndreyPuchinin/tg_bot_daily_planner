@@ -579,7 +579,7 @@ def settings_value_input(msg):
         )
         bot.send_message(
             chat_id,
-            "⚙️ Выберите параметр для настройки:",
+            "⚙️ Выберите параметр для настройки (/start = сброс):",
             reply_markup=markup
         )
         # Убедимся, что пользователь всё ещё в меню
@@ -892,18 +892,17 @@ def daytasks_handler(message):
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
-    try:
-        data = load_data(message.from_user.first_name, message.from_user.id, "daytasks")
-        example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
-        bot.send_message(
-            message.chat.id,
-            f"Введите дату в формате: ГГГГ-ММ-ДД\n"
-            f"Пример: {example}",
-            reply_markup=make_cancel_button("cancel_daytasks")
-        )
-        user_awaiting_daytasks_date.add(user_id)
-    except:
+    data = load_data(message.from_user.first_name, message.from_user.id, "daytasks")
+    if data == None:
         return
+    example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
+    bot.send_message(
+        message.chat.id,
+        f"Введите дату в формате: ГГГГ-ММ-ДД\n"
+        f"Пример: {example}",
+        reply_markup=make_cancel_button("cancel_daytasks")
+    )
+    user_awaiting_daytasks_date.add(user_id)
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_daytasks_date)
 def handle_daytasks_date_input(msg):
@@ -1126,20 +1125,19 @@ def weekbydate_handler(message):
     if message.chat.type != "private":
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
-    try:
-        data = load_data(message.from_user.first_name, message.from_user.id, "weekbydate")
-        user_id = str(message.from_user.id)
-        # Пример даты — сегодня + 7 дней
-        example_date = (now_msk().date() + timedelta(days=7)).strftime("%Y-%m-%d")
-        bot.send_message(
-            message.chat.id,
-            f"Введите дату в формате: ГГГГ-ММ-ДД\n"
-            f"Пример: {example_date}",
-            reply_markup=make_cancel_button("cancel_weekbydate")
-        )
-        user_awaiting_weekbydate_input.add(user_id)
-    except:
+    data = load_data(message.from_user.first_name, message.from_user.id, "weekbydate")
+    if data == None:
         return
+    user_id = str(message.from_user.id)
+    # Пример даты — сегодня + 7 дней
+    example_date = (now_msk().date() + timedelta(days=7)).strftime("%Y-%m-%d")
+    bot.send_message(
+        message.chat.id,
+        f"Введите дату в формате: ГГГГ-ММ-ДД\n"
+        f"Пример: {example_date}",
+        reply_markup=make_cancel_button("cancel_weekbydate")
+    )
+    user_awaiting_weekbydate_input.add(user_id)
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_weekbydate_input)
 def handle_weekbydate_input(msg):
