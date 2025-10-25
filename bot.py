@@ -976,7 +976,7 @@ def today_handler(message):
     else:
         header = f"📋 Задачи на сегодня <b>({today.strftime('%d.%m.%Y')})</b>:\n\n"
         full_message = header + "\n".join(tasks)
-        send_long_message(bot, message.chat.id, full_message)
+        send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["tomorrow"])
 def tomorrow_handler(message):
