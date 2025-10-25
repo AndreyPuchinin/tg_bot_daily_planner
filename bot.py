@@ -1382,7 +1382,7 @@ def reminder_daemon():
                 # logger.error("I'm in reminder_daemon()!")
                 check_and_send_reminders(bot, user_id, user_id, data)
         except Exception as e:
-            lines.append(f"Reminder error: {e}")
+            logger.error(f"Reminder error: {e}")
         time.sleep(600)  # 10 минут — раскомментировать при запуске на сервере
 
 @app.route('/' + TELEGRAM_BOT_TOKEN, methods=['POST'])
