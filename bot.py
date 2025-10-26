@@ -1251,7 +1251,6 @@ def handle_weekbydate_input(msg):
             except (ValueError, KeyError):
                 continue
         raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
-        tasks = []
         for task in raw_tasks:
             safe_text = html.escape(task["text"])
             tasks.append(f"• {safe_text} <b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
