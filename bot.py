@@ -852,8 +852,8 @@ def overdue_handler(message):
         for task in overdue_tasks:
             dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
             lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>")
-        full_message = "⚠️ Просроченные задачи:\n\n" + "\n".join(lines)
-        send_long_message(bot, message.chat.id, full_message)
+        full_message = "⚠️ <b>Просроченные задачи:</b>\n\n" + "\n".join(lines)
+        send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["settings"])
 def settings_handler(message):
@@ -965,9 +965,9 @@ def handle_daytasks_date_input(msg):
     tasks_on_date = get_sorted_tasks_on_date(data, str(msg.from_user.id), target_date)
 
     if not tasks_on_date:
-        bot.send_message(chat_id, f"📅 На {date_str} нет запланированных задач.")
+        bot.send_message(chat_id, f"📅 На <b>{date_str}</b> нет запланированных задач.")
     else:
-        header = f"📋 Задачи на {date_str}:\n\n"
+        header = f"📋 Задачи на <b>{date_str}:</b>\n\n"
         full_message = header + "\n".join(tasks_on_date)
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
@@ -1003,9 +1003,9 @@ def today_handler(message):
     # logger.error(f"tasks = {tasks}")
 
     if not tasks:
-        bot.send_message(message.chat.id, f"📅 На сегодня ({today.strftime('%d.%m.%Y')}) нет запланированных задач.")
+        bot.send_message(message.chat.id, f"📅 На сегодня <b>({today.strftime('%d.%m.%Y')})</b> нет запланированных задач.")
     else:
-        header = f"📋 Задачи на сегодня ({today.strftime('%d.%m.%Y')}):\n\n"
+        header = f"📋 Задачи на сегодня <b>({today.strftime('%d.%m.%Y')})</b>:\n\n"
         full_message = header + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
@@ -1049,11 +1049,11 @@ def tomorrow_handler(message):
         # logger.debug("6")
         bot.send_message(
             message.chat.id,
-            f"📅 На завтра ({tomorrow.strftime('%d.%m.%Y')}) нет запланированных задач."
+            f"📅 На завтра <b>({tomorrow.strftime('%d.%m.%Y')})<b> нет запланированных задач."
         )
     else:
         # logger.debug("7")
-        header = f"📋 Задачи на завтра ({tomorrow.strftime('%d.%m.%Y')}):\n"
+        header = f"📋 Задачи на завтра <b>({tomorrow.strftime('%d.%m.%Y')})</b>:\n"
         full_message = header + "\n" + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
