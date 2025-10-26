@@ -1400,7 +1400,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
 
     save_data(data)
     target_bot = reminder_bot if reminder_bot else bot
-    send_long_message(target_bot, chat_id, full_message)
+    send_long_message(target_bot, chat_id, full_message, parse_mode="HTML")
 
 def reminder_daemon():
     while True:
