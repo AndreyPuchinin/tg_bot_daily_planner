@@ -1094,7 +1094,7 @@ def tomorrow_handler(message):
     else:
         # logger.debug("7")
         header = f"📋 Задачи на завтра <b>({tomorrow.strftime('%d.%m.%Y')})</b>:\n"
-        full_message = header + "\n\n" + "\n".join(tasks)
+        full_message = header + "\n" + "\n\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["week"])
@@ -1161,7 +1161,7 @@ def week_handler(message):
             lines.append("Нет задач")
         lines.append("")
 
-    full_message = "\n\n\n".join(lines).strip()
+    full_message = "\n\n".join(lines).strip()
     if not full_message:
         full_message = "На ближайшую неделю задач нет."
         send_long_message(bot, message.chat.id, full_message)
@@ -1264,7 +1264,7 @@ def handle_weekbydate_input(msg):
     if not has_any_task:
         bot.send_message(chat_id, "На эту неделю задач нет.")
     else:
-        full_message = "\n\n\n".join(lines).strip()
+        full_message = "\n\n".join(lines).strip()
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["nextweek"])
@@ -1334,7 +1334,7 @@ def nextweek_handler(message):
     if not has_any_task:
         bot.send_message(chat_id, "На следующую неделю задач нет.")
     else:
-        full_message = "\n\n\n".join(lines).strip()
+        full_message = "\n\n".join(lines).strip()
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["task"])
@@ -1466,10 +1466,9 @@ def datetime_input_handler(message):
     bot.send_message(
         chat_id,
         f"✅ Задача сохранена!\n"
-        f"<b>ID:</b> <i>{task['task_id']}</i>\n"
+        f"<b>ID:</b> <i>{new_task['task_id']}</i>\n"
         f"{text}\n"
         f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}",
-        None,
         parse_mode="HTML"
     )
 
