@@ -223,7 +223,7 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
         f"‼ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
         f"но произошла ошибка при работе с Базой Данных!\n"
         f"Подробнее об ошибке:\n"
-        f"{error_details}"
+        f"<i>{error_details}</i>"
     )
     logger.error(error_details)
 
