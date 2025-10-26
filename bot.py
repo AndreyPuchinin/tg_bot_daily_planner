@@ -1109,7 +1109,7 @@ def tomorrow_handler(message):
         # logger.debug("6")
         bot.send_message(
             message.chat.id,
-            f"📅 На завтра <b>({tomorrow.strftime('%d.%m.%Y')})<b> нет запланированных задач.",
+            f"📅 На завтра <b>({tomorrow.strftime('%d.%m.%Y')})</b> нет запланированных задач.",
             parse_mode="HTML"
         )
     else:
