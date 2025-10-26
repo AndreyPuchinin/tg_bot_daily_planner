@@ -220,10 +220,10 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
         return
     
     message_to_admins = (
-        f"‼ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
+        f"‼ Пользователь <b>{user_name} (ID=<code>{user_id}</code>)</b> пытается выполнить команду <code>/{command}</code>, "
         f"но произошла ошибка при работе с Базой Данных!\n"
         f"Подробнее об ошибке:\n"
-        f"<i>{error_details}</i>"
+        f"<code>{error_details}</code>"
     )
     logger.error(error_details)
 
@@ -253,8 +253,8 @@ def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
     message_to_admins = (
         f"🆕 Новый пользователь зарегистрировался в боте!\n\n"
         f"<b>Имя: <i>{user_name}</i></b>\n"
-        f"<i><b>User ID:</b> {user_id}</i>\n"
-        f"<i><b>Chat ID:</b> {chat_id}</i>"
+        f"<i><b>User ID:</b> <code>{user_id}</code></i>\n"
+        f"<i><b>Chat ID:</b> <code>{chat_id}</code></i>"
     )
     for admin_id in ADMIN_USER_ID:
         try:
@@ -822,7 +822,7 @@ def handle_feedback_message(msg):
 
     # Формируем сообщение для админов
     admin_message = (
-        f"📩 Пользователь <b>{user_name} (ID={user_id})</b> отправил фидбек:\n\n"
+        f"📩 Пользователь <b>{user_name} (ID=<code>{user_id}</code>)</b> отправил фидбек:\n\n"
         f"{feedback_text}"
     )
 
