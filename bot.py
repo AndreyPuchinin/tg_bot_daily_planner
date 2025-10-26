@@ -892,7 +892,7 @@ def overdue_handler(message):
         for task in overdue_tasks:
             dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
             lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
-        full_message = "⚠️ <b>Просроченные задачи:</b>\n\n" + "\n".join(lines)
+        full_message = "⚠️ <b>Просроченные задачи:</b>\n\n" + "\n\n".join(lines)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["settings"])
@@ -1008,7 +1008,7 @@ def handle_daytasks_date_input(msg):
         bot.send_message(chat_id, f"📅 На <b>{date_str}</b> нет запланированных задач.")
     else:
         header = f"📋 Задачи на <b>{date_str}:</b>\n\n"
-        full_message = header + "\n".join(tasks_on_date)
+        full_message = header + "\n\n".join(tasks_on_date)
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["today"])
@@ -1046,7 +1046,7 @@ def today_handler(message):
         bot.send_message(message.chat.id, f"📅 На сегодня <b>({today.strftime('%d.%m.%Y')})</b> нет запланированных задач.")
     else:
         header = f"📋 Задачи на сегодня <b>({today.strftime('%d.%m.%Y')})</b>:\n\n"
-        full_message = header + "\n".join(tasks)
+        full_message = header + "\n\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["tomorrow"])
@@ -1094,7 +1094,7 @@ def tomorrow_handler(message):
     else:
         # logger.debug("7")
         header = f"📋 Задачи на завтра <b>({tomorrow.strftime('%d.%m.%Y')})</b>:\n"
-        full_message = header + "\n" + "\n".join(tasks)
+        full_message = header + "\n\n" + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["week"])
@@ -1152,16 +1152,16 @@ def week_handler(message):
         for task in raw_tasks:
             safe_text = html.escape(task["text"])
             time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
-            tasks.append(f"• {safe_text} <b><i>({time_str})</i></b>")
+            tasks.append(f"• {safe_text} <b><i>({time_str})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
         
         lines.append(f"<b>{weekday_abbr} {date_str}</b>")
         if tasks:
-            lines.append("\n".join(tasks))
+            lines.append("\n\n".join(tasks))
         else:
             lines.append("Нет задач")
         lines.append("")
 
-    full_message = "\n".join(lines).strip()
+    full_message = "\n\n\n".join(lines).strip()
     if not full_message:
         full_message = "На ближайшую неделю задач нет."
         send_long_message(bot, message.chat.id, full_message)
@@ -1258,13 +1258,13 @@ def handle_weekbydate_input(msg):
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
         lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
-        lines.append("\n".join(tasks) if tasks else "• Нет задач")
+        lines.append("\n\n".join(tasks) if tasks else "• Нет задач")
         lines.append("")
 
     if not has_any_task:
         bot.send_message(chat_id, "На эту неделю задач нет.")
     else:
-        full_message = "\n".join(lines).strip()
+        full_message = "\n\n\n".join(lines).strip()
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["nextweek"])
@@ -1328,13 +1328,13 @@ def nextweek_handler(message):
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
         lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
-        lines.append("\n".join(tasks) if tasks else "• Нет задач")
+        lines.append("\n\n".join(tasks) if tasks else "• Нет задач")
         lines.append("")  # пустая строка между днями
 
     if not has_any_task:
         bot.send_message(chat_id, "На следующую неделю задач нет.")
     else:
-        full_message = "\n".join(lines).strip()
+        full_message = "\n\n\n".join(lines).strip()
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["task"])
@@ -1468,7 +1468,8 @@ def datetime_input_handler(message):
         f"✅ Задача сохранена!\n"
         f"<b>ID:</b> <i>{task['task_id']}</i>\n"
         f"{text}\n"
-        f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}"
+        f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}",
+        parse_mode="HTML"
     )
 
 # === НАПОМИНАНИЯ ===
