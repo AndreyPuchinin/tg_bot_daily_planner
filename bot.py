@@ -1120,15 +1120,15 @@ def week_handler(message):
         return
 
     today = now_msk().date()
-    monday = today - timedelta(days=today.weekday())  # начало текущей недели
+    monday = today - timedelta(days=today.weekday())
     week_days = [monday + timedelta(days=i) for i in range(7)]
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
-    
-    lines = []
+
+    day_blocks = []
     for day in week_days:
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str = day.strftime("%d.%m.%Y")
-        lines.append(f"<b>{weekday_abbr} {date_str}</b>")
+        header = f"<b>{weekday_abbr} {date_str}</b>"
 
         raw_tasks = []
         for task in data[user_id].get("tasks", []):
@@ -1142,19 +1142,34 @@ def week_handler(message):
                 continue
         raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
 
-        if raw_tasks:
-            for task in raw_tasks:
-                safe_text = html.escape(task["text"])
-                time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
-                task_id = task.get("task_id", "—")
-                lines.append(f"• {safe_text} <b><i>({time_str})</i></b>  <code>ID: {task_id}</code>")
-        else:
-            lines.append("• Нет задач")
-        lines.append("")  # одна пустая строка между днями
+        if not raw_tasks:
+            day_blocks.append(f"{header}\n• Нет задач")
+            continue
 
-    full_message = "\n".join(lines).strip()
-    if not full_message:
+        task_lines = []
+        for task in raw_tasks:
+            safe_text = html.escape(task["text"])
+            time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
+            task_id = task.get("task_id", "—")
+            task_lines.append(
+                f"• {safe_text}\n"
+                f"<code>ID: {task_id}</code>\n"
+                f"({time_str})"
+            )
+
+        day_content = "\n\n".join(task_lines)
+        day_blocks.append(f"{header}\n{day_content}")
+
+    # Собираем всё с разделителями МЕЖДУ днями
+    full_message = ""
+    for i, block in enumerate(day_blocks):
+        full_message += block
+        if i < len(day_blocks) - 1:  # не последний день
+            full_message += "\n=======\n\n"
+
+    if not full_message.strip():
         full_message = "На эту неделю задач нет."
+
     send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["weekbydate"])
@@ -1221,12 +1236,11 @@ def handle_weekbydate_input(msg):
     week_days = [monday + timedelta(days=i) for i in range(7)]
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
 
-    lines = []
-    has_any_task = False
+    day_blocks = []
     for day in week_days:
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
-        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
+        header = f"<b>{weekday_abbr} {date_str_fmt}</b>"
 
         raw_tasks = []
         for task in data[user_id].get("tasks", []):
@@ -1240,19 +1254,31 @@ def handle_weekbydate_input(msg):
                 continue
         raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
 
-        if raw_tasks:
-            for task in raw_tasks:
-                safe_text = html.escape(task["text"])
-                time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
-                task_id = task.get("task_id", "—")
-                lines.append(f"• {safe_text} <b><i>({time_str})</i></b>  <code>ID: {task_id}</code>")
-                has_any_task = True
-        else:
-            lines.append("• Нет задач")
-        lines.append("")
+        if not raw_tasks:
+            day_blocks.append(f"{header}\n• Нет задач")
+            continue
 
-    full_message = "\n".join(lines).strip()
-    if not has_any_task:
+        task_lines = []
+        for task in raw_tasks:
+            safe_text = html.escape(task["text"])
+            time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
+            task_id = task.get("task_id", "—")
+            task_lines.append(
+                f"• {safe_text}\n"
+                f"<code>ID: {task_id}</code>\n"
+                f"({time_str})"
+            )
+
+        day_content = "\n\n".join(task_lines)
+        day_blocks.append(f"{header}\n{day_content}")
+
+    full_message = ""
+    for i, block in enumerate(day_blocks):
+        full_message += block
+        if i < len(day_blocks) - 1:
+            full_message += "\n=======\n\n"
+
+    if not any("•" in block for block in day_blocks):
         bot.send_message(chat_id, "На эту неделю задач нет.")
     else:
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
@@ -1287,17 +1313,16 @@ def nextweek_handler(message):
         return
 
     today = now_msk().date()
-    days_ahead = 7 - today.weekday()  # до следующего понедельника
+    days_ahead = 7 - today.weekday()
     next_monday = today + timedelta(days=days_ahead)
     week_days = [next_monday + timedelta(days=i) for i in range(7)]
     weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
 
-    lines = []
-    has_any_task = False
+    day_blocks = []
     for day in week_days:
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
-        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
+        header = f"<b>{weekday_abbr} {date_str_fmt}</b>"
 
         raw_tasks = []
         for task in data[user_id].get("tasks", []):
@@ -1311,19 +1336,31 @@ def nextweek_handler(message):
                 continue
         raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
 
-        if raw_tasks:
-            for task in raw_tasks:
-                safe_text = html.escape(task["text"])
-                time_str = task_dt.strftime("%H:%M")
-                task_id = task.get("task_id", "—")
-                lines.append(f"• {safe_text} <b><i>({time_str})</i></b>  <code>ID: {task_id}</code>")
-                has_any_task = True
-        else:
-            lines.append("• Нет задач")
-        lines.append("")
+        if not raw_tasks:
+            day_blocks.append(f"{header}\n• Нет задач")
+            continue
 
-    full_message = "\n".join(lines).strip()
-    if not has_any_task:
+        task_lines = []
+        for task in raw_tasks:
+            safe_text = html.escape(task["text"])
+            time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
+            task_id = task.get("task_id", "—")
+            task_lines.append(
+                f"• {safe_text}\n"
+                f"<code>ID: {task_id}</code>\n"
+                f"({time_str})"
+            )
+
+        day_content = "\n\n".join(task_lines)
+        day_blocks.append(f"{header}\n{day_content}")
+
+    full_message = ""
+    for i, block in enumerate(day_blocks):
+        full_message += block
+        if i < len(day_blocks) - 1:
+            full_message += "\n=======\n\n"
+
+    if not any("•" in block for block in day_blocks):
         bot.send_message(chat_id, "На следующую неделю задач нет.")
     else:
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
