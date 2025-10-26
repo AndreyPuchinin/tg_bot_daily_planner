@@ -728,6 +728,7 @@ def info_handler(message):
     text += "• /today — <i>показать задачи на сегодня</i>\n"
     text += "• /tomorrow — <i>показать задачи на завтра</i>\n"
     text += "• /week — <i>показать задачи на текущую неделю</i>\n"
+    text += "• /nextweek — <i>показать задачи на следующую неделю</i>\n"
     text += "• /weekbydate — <i>показать задачи на неделю по дате</i>\n\n"
     text += "<i><b>P.s.</b>: при обновлении бота админом команды могут притормаживать (в пределах ~1-2 минут).</i>\n"
     text += "<i>Если бот не реагирует, попробуйте повторный запрос или другую команду.</i>\n"
@@ -1222,6 +1223,76 @@ def handle_weekbydate_input(msg):
 
     if not has_any_task:
         bot.send_message(chat_id, "На эту неделю задач нет.")
+    else:
+        full_message = "\n".join(lines).strip()
+        send_long_message(bot, chat_id, full_message, parse_mode="HTML")
+
+@bot.message_handler(commands=["nextweek"])
+def nextweek_handler(message):
+    if is_rate_limited(str(message.from_user.id)):
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Слишком много запросов. Подождите немного перед следующей командой."
+        )
+        return
+    if message.chat.type != "private":
+        stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
+        return
+
+    user_id = str(message.from_user.id)
+    user_name = message.from_user.first_name or "Пользователь"
+    chat_id = message.chat.id
+
+    # Загружаем данные
+    try:
+        data = load_data(user_name, chat_id, "nextweek")
+        if data == None:
+            return
+        if data is None:
+            bot.send_message(chat_id, USER_DB_ERROR_MESSAGE)
+            return
+    except Exception as e:
+        logger.critical(f"Ошибка загрузки БД в /nextweek: {e}")
+        bot.send_message(chat_id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
+        return
+
+    if user_id not in data:
+        bot.send_message(chat_id, "Сначала отправьте /start")
+        return
+
+    # Определяем понедельник СЛЕДУЮЩЕЙ недели
+    today = now_msk().date()
+    days_ahead = 7 - today.weekday()  # сколько дней до следующего понедельника
+    next_monday = today + timedelta(days=days_ahead)
+    week_days = [next_monday + timedelta(days=i) for i in range(7)]
+
+    # Формируем вывод (копируем логику из /weekbydate)
+    weekdays_ru = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
+    lines = []
+    has_any_task = False
+
+    for day in week_days:
+        tasks = []
+        for task in data[user_id].get("tasks", []):
+            if task.get("status") == "completed":
+                continue
+            try:
+                task_dt = datetime.fromisoformat(task["datetime"])
+                if task_dt.date() == day:
+                    safe_text = html.escape(task["text"])
+                    tasks.append(f"• {safe_text} ({task_dt.strftime('%H:%M')})")
+                    has_any_task = True
+            except (ValueError, KeyError):
+                continue
+
+        weekday_abbr = weekdays_ru[day.weekday()]
+        date_str_fmt = day.strftime("%d.%m.%Y")
+        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
+        lines.append("\n".join(tasks) if tasks else "• Нет задач")
+        lines.append("")  # пустая строка между днями
+
+    if not has_any_task:
+        bot.send_message(chat_id, "На следующую неделю задач нет.")
     else:
         full_message = "\n".join(lines).strip()
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
