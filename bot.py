@@ -1469,6 +1469,7 @@ def datetime_input_handler(message):
         f"<b>ID:</b> <i>{task['task_id']}</i>\n"
         f"{text}\n"
         f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}",
+        None,
         parse_mode="HTML"
     )
 
