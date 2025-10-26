@@ -562,7 +562,7 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
     # Сортируем по времени
     raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
     # Преобразуем в строки
-    return [f"• {task['text']}\n<b>ID:</b> <code>{task['task_id']}</code>\n<b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>" for task in raw_tasks]
+    return [f"• {task['text']}\n<b>ID:</b> <code><i>{task['task_id']}</i></code>\n<b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>" for task in raw_tasks]
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
 def settings_value_input(msg):
@@ -891,7 +891,7 @@ def overdue_handler(message):
         lines = []
         for task in overdue_tasks:
             dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
-            lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>\n<b>ID:</b> <code>{task['task_id']}</code>")
+            lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>\n<b>ID:</b> <code><i>{task['task_id']}</i></code>")
         full_message = "⚠️ <b>Просроченные задачи:</b>\n\n" + "\n\n".join(lines)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
@@ -1154,7 +1154,7 @@ def week_handler(message):
             task_id = task.get("task_id", "—")
             task_lines.append(
                 f"• {safe_text}\n"
-                f"<code>ID: {task_id}</code>\n"
+                f"<b>ID:</b> <i><code>{task_id}</code></i>\n"
                 f"({time_str})"
             )
 
@@ -1267,7 +1267,7 @@ def handle_weekbydate_input(msg):
             task_id = task.get("task_id", "—")
             task_lines.append(
                 f"• {safe_text}\n"
-                f"<code>ID: {task_id}</code>\n"
+                f"<b>ID:</b> <code><i>{task_id}</i></code>\n"
                 f"({time_str})"
             )
 
@@ -1349,7 +1349,7 @@ def nextweek_handler(message):
             task_id = task.get("task_id", "—")
             task_lines.append(
                 f"• {safe_text}\n"
-                f"<code>ID: {task_id}</code>\n"
+                f"<b>ID:</b> <code><i>{task_id}</i></code>\n"
                 f"({time_str})"
             )
 
@@ -1398,7 +1398,7 @@ def task_handler(message):
         bot.send_message(
             message.chat.id,
             f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
-            f"Пример:\n<code>{example}</code>\n"
+            f"Пример: <code>{example}</code>\n"
             f"Или нажми Cancel ниже.",
             reply_markup=make_cancel_button("cancel_task"),
             parse_mode="HTML"
@@ -1498,7 +1498,7 @@ def datetime_input_handler(message):
     bot.send_message(
         chat_id,
         f"✅ Задача сохранена!\n"
-        f"<b>ID:</b> <i>{new_task['task_id']}</i>\n"
+        f"<b>ID:</b> <i><code>{new_task['task_id']}</code></i>\n"
         f"{text}\n"
         f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}",
         parse_mode="HTML"
