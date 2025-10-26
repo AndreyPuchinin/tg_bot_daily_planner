@@ -189,7 +189,7 @@ def migrate_tasks_unique_handler(message):
         return
 
     user_name = message.from_user.first_name or "Admin"
-    data = load_data(user_name, message.from_user.id, "migrate_tasks_unique")
+    data = load_data(user_name, message.from_user.id, "update_all_ids")
     if data is None:
         bot.send_message(message.chat.id, "❌ Не удалось загрузить БД.")
         return
