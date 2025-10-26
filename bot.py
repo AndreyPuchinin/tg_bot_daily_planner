@@ -1015,7 +1015,9 @@ def handle_daytasks_date_input(msg):
     tasks_on_date = get_sorted_tasks_on_date(data, str(msg.from_user.id), target_date)
 
     if not tasks_on_date:
-        bot.send_message(chat_id, f"📅 На <b>{date_str}</b> нет запланированных задач.")
+        bot.send_message(chat_id,
+                         f"📅 На <b>{date_str}</b> нет запланированных задач.",
+                         parse_mode="HTML")
     else:
         header = f"📋 Задачи на <b>{date_str}:</b>\n\n"
         full_message = header + "\n\n".join(tasks_on_date)
@@ -1059,7 +1061,9 @@ def today_handler(message):
     # logger.error(f"tasks = {tasks}")
 
     if not tasks:
-        bot.send_message(message.chat.id, f"📅 На сегодня <b>({today.strftime('%d.%m.%Y')})</b> нет запланированных задач.")
+        bot.send_message(message.chat.id,
+                         f"📅 На сегодня <b>({today.strftime('%d.%m.%Y')})</b> нет запланированных задач.",
+                         parse_mode="HTML")
     else:
         header = f"📋 Задачи на сегодня <b>({today.strftime('%d.%m.%Y')})</b>:\n\n"
         full_message = header + "\n\n".join(tasks)
@@ -1105,7 +1109,8 @@ def tomorrow_handler(message):
         # logger.debug("6")
         bot.send_message(
             message.chat.id,
-            f"📅 На завтра <b>({tomorrow.strftime('%d.%m.%Y')})<b> нет запланированных задач."
+            f"📅 На завтра <b>({tomorrow.strftime('%d.%m.%Y')})<b> нет запланированных задач.",
+            parse_mode="HTML"
         )
     else:
         # logger.debug("7")
@@ -1170,7 +1175,7 @@ def week_handler(message):
             task_lines.append(
                 f"• {safe_text}\n"
                 f"<b>ID:</b> <i><code>{task_id}</code></i>\n"
-                f"({time_str})"
+                f"<b><i>({time_str})</i></b>"
             )
 
         day_content = "\n\n".join(task_lines)
@@ -1289,7 +1294,7 @@ def handle_weekbydate_input(msg):
             task_lines.append(
                 f"• {safe_text}\n"
                 f"<b>ID:</b> <code><i>{task_id}</i></code>\n"
-                f"({time_str})"
+                f"<b><i>({time_str})</i></b>"
             )
 
         day_content = "\n\n".join(task_lines)
@@ -1371,7 +1376,7 @@ def nextweek_handler(message):
             task_lines.append(
                 f"• {safe_text}\n"
                 f"<b>ID:</b> <code><i>{task_id}</i></code>\n"
-                f"({time_str})"
+                f"<b><i>({time_str})</i></b>"
             )
 
         day_content = "\n\n".join(task_lines)
