@@ -1035,11 +1035,11 @@ def today_handler(message):
     try:
         data = load_data(message.from_user.first_name, message.from_user.id, "today")
         if data == {}:
-        bot.send_message(
-            message.chat.id,
-            "Сначала отправьте /start"
-        )
-        return
+            bot.send_message(
+                message.chat.id,
+                "Сначала отправьте /start"
+            )
+            return
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /today: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
