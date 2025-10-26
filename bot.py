@@ -829,7 +829,7 @@ def handle_feedback_message(msg):
     for admin_id_str in ADMIN_USER_ID:
         try:
             admin_id = int(admin_id_str)  # всегда работаем с int
-            bot.send_message(admin_id, message_to_admins, parse_mode="HTML")
+            bot.send_message(admin_id_str, message_to_admins, parse_mode="HTML")
         except ValueError:
             logger.error(f"Некорректный ADMIN_USER_ID: {admin_id_str}")
         except Exception as e:
