@@ -1148,7 +1148,6 @@ def week_handler(message):
         # Сортируем
         raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
         # Форматируем с экранированием
-        tasks = []
         for task in raw_tasks:
             safe_text = html.escape(task["text"])
             time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
@@ -1331,7 +1330,6 @@ def nextweek_handler(message):
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
         first_line = f"<b>{weekday_abbr} {date_str_fmt}</b>"
-        lines = []
         lines.append("\n\n".join(tasks) if tasks else "• Нет задач")
         lines.append("")  # пустая строка между днями
 
