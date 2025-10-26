@@ -949,6 +949,7 @@ def daytasks_handler(message):
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
     data = load_data(message.from_user.first_name, message.from_user.id, "daytasks")
+    if 
     if data == None:
         return
     example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
@@ -1028,6 +1029,12 @@ def today_handler(message):
     user_id = str(message.from_user.id)
     try:
         data = load_data(message.from_user.first_name, message.from_user.id, "today")
+        if data == {}:
+        bot.send_message(
+            message.chat.id,
+            "Сначала отправьте /start"
+        )
+        return
     except Exception as e:
         logger.critical(f"Ошибка загрузки БД в /today: {e}")
         bot.send_message(message.chat.id, "⚠️ Не удалось загрузить задачи. Попробуйте позже.")
@@ -1186,6 +1193,12 @@ def weekbydate_handler(message):
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
     data = load_data(message.from_user.first_name, message.from_user.id, "weekbydate")
+    if data == {}:
+        bot.send_message(
+            message.chat.id,
+            "Сначала отправьте /start"
+        )
+        return
     if data is None:
         return
     user_id = str(message.from_user.id)
@@ -1382,7 +1395,13 @@ def task_handler(message):
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
     user_name = message.from_user.first_name or "Пользователь"
-    data = load_data(user_name, message.from_user.id, "task")
+    data = load_data(user_name, message.from_user.id, "task"
+    if data == {}:
+        bot.send_message(
+            message.chat.id,
+            "Сначала отправьте /start"
+        )
+        return
     if data == None:
         return
     text = message.text[6:].strip()
