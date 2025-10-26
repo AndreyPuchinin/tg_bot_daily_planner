@@ -179,6 +179,36 @@ def save_data(data):
         logger.critical(f"❌Ошибка при сохранении данных в Gist: {e}")
         
 # === КОМАНДЫ АДМИНА ===
+
+# Временная команда для установки айди всем задачам без айди
+# НЕ обновляет айди, если они были установлены иным механизмом!!
+@bot.message_handler(commands=["migrate_tasks"])
+def migrate_tasks_handler(message):
+    if str(message.from_user.id) not in ADMIN_USER_ID:
+        bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
+        return
+
+    user_name = message.from_user.first_name or "Admin"
+    data = load_data(user_name, message.from_user.id, "migrate_tasks")
+    if data is None:
+        bot.send_message(message.chat.id, "❌ Не удалось загрузить БД.")
+        return
+
+    migrated_count = 0
+    for user_id, user_data in data.items():
+        if "tasks" not in user_data:
+            continue
+        for task in user_data["tasks"]:
+            if "task_id" not in task:
+                task["task_id"] = generate_task_id(user_id)
+                migrated_count += 1
+
+    if migrated_count == 0:
+        bot.send_message(message.chat.id, "✅ Все задачи уже имеют task_id.")
+    else:
+        save_data(data)
+        bot.send_message(message.chat.id, f"✅ Добавлено {migrated_count} task_id(ев).")
+
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     # Если вызов из напоминания (reminder_daemon), игнорируем вызов и завершаемся
     if user_name == "" or user_id == 0 or command == "":
@@ -475,6 +505,11 @@ def universal_callback_handler(call):
     bot.answer_callback_query(call.id, "⚠️ Неизвестное действие", show_alert=True)
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+
+# генерируем уникальный айди задаче
+def generate_task_id(user_id: str) -> str:
+    """Генерирует уникальный ID задачи: user_id + текущее время в миллисекундах."""
+    return f"{user_id}_{int(time.time() * 1000)}"
 
 # против ддос-атаки
 def is_rate_limited(user_id: str) -> bool:
@@ -1412,6 +1447,7 @@ def datetime_input_handler(message):
 
     text = user_awaiting_datetime[user_id]
     new_task = {
+        "task_id": generate_task_id(user_id),
         "text": text,
         "datetime": task_datetime.isoformat(),
         "status": "waiting",
