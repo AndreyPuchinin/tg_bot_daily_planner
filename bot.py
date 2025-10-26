@@ -562,7 +562,7 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
     # Сортируем по времени
     raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
     # Преобразуем в строки
-    return [f"• {task['text']}\n<b>ID:</b> <i>{task['task_id']}</i>\n<b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>" for task in raw_tasks]
+    return [f"• {task['text']}\n<b>ID:</b> <code>{task['task_id']}</code>\n<b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>" for task in raw_tasks]
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
 def settings_value_input(msg):
@@ -891,7 +891,7 @@ def overdue_handler(message):
         lines = []
         for task in overdue_tasks:
             dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
-            lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
+            lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>\n<b>ID:</b> <code>{task['task_id']}</code>")
         full_message = "⚠️ <b>Просроченные задачи:</b>\n\n" + "\n\n".join(lines)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
@@ -954,8 +954,9 @@ def daytasks_handler(message):
     bot.send_message(
         message.chat.id,
         f"Введите дату в формате: ГГГГ-ММ-ДД\n"
-        f"Пример: {example}",
-        reply_markup=make_cancel_button("cancel_daytasks")
+        f"Пример: <code>{example}</code>",
+        reply_markup=make_cancel_button("cancel_daytasks"),
+        parse_mode="HTML"
     )
     user_awaiting_daytasks_date.add(user_id)
 
@@ -1191,8 +1192,9 @@ def weekbydate_handler(message):
     bot.send_message(
         message.chat.id,
         f"Введите дату в формате: ГГГГ-ММ-ДД\n"
-        f"Пример: {example_date}",
-        reply_markup=make_cancel_button("cancel_weekbydate")
+        f"Пример: <code>{example_date}</code>",
+        reply_markup=make_cancel_button("cancel_weekbydate"),
+        parse_mode="HTML"
     )
     user_awaiting_weekbydate_input.add(user_id)
 
@@ -1396,9 +1398,10 @@ def task_handler(message):
         bot.send_message(
             message.chat.id,
             f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
-            f"Пример:\n{example}\n"
+            f"Пример:\n<code>{example}</code>\n"
             f"Или нажми Cancel ниже.",
-            reply_markup=make_cancel_button("cancel_task")
+            reply_markup=make_cancel_button("cancel_task"),
+            parse_mode="HTML"
         )
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_task_text)
@@ -1426,9 +1429,10 @@ def task_text_input(msg):
     bot.send_message(
         msg.chat.id,
         f"Укажи дату и время в формате: ГГГГ-ММ-ДД ЧЧ:ММ\n"
-        f"Пример:\n{example}\n"
+        f"Пример:\n<code>{example}</code>\n"
         f"Или нажми inline-кнопку Cancel ниже.",
-        reply_markup=make_cancel_button("cancel_task")
+        reply_markup=make_cancel_button("cancel_task"),
+        parse_mode="HTML"
     )
 
 @bot.message_handler(func=lambda message: str(message.from_user.id) in user_awaiting_datetime)
