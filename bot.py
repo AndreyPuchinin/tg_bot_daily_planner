@@ -1400,7 +1400,7 @@ def task_handler(message):
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
     user_name = message.from_user.first_name or "Пользователь"
-    data = load_data(user_name, message.from_user.id, "task"
+    data = load_data(user_name, message.from_user.id, "task")
     if data == {}:
         bot.send_message(
             message.chat.id,
