@@ -1396,7 +1396,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     tasks_block = "\n\n".join(lines)
 
     # А теперь добавляем заголовок с ОДНОЙ пустой строкой после него
-    full_message = "‼Напоминаю!\n\n" + tasks_block
+    full_message = "‼<b>Напоминаю!</b>\n\n" + tasks_block
 
     save_data(data)
     target_bot = reminder_bot if reminder_bot else bot
