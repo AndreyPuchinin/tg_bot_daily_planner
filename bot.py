@@ -1153,15 +1153,16 @@ def week_handler(message):
             safe_text = html.escape(task["text"])
             time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
             tasks.append(f"• {safe_text} <b><i>({time_str})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
-        
-        lines.append(f"<b>{weekday_abbr} {date_str}</b>")
+
+        first_line = f"<b>{weekday_abbr} {date_str}</b>"
+        lines = []
         if tasks:
             lines.append("\n\n".join(tasks))
         else:
             lines.append("Нет задач")
         lines.append("")
 
-    full_message = "=========\n\n".join(lines).strip()
+    full_message = first_line + "\n=========\n".join(lines).strip()
     if not full_message:
         full_message = "На ближайшую неделю задач нет."
         send_long_message(bot, message.chat.id, full_message)
@@ -1257,14 +1258,15 @@ def handle_weekbydate_input(msg):
 
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
-        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
+        first_line = f"<b>{weekday_abbr} {date_str_fmt}</b>"
+        lines = []
         lines.append("\n\n".join(tasks) if tasks else "• Нет задач")
         lines.append("")
 
     if not has_any_task:
         bot.send_message(chat_id, "На эту неделю задач нет.")
     else:
-        full_message = "=========\n\n".join(lines).strip()
+        full_message = first_line + "\n=========\n".join(lines).strip()
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["nextweek"])
@@ -1327,14 +1329,15 @@ def nextweek_handler(message):
 
         weekday_abbr = weekdays_ru[day.weekday()]
         date_str_fmt = day.strftime("%d.%m.%Y")
-        lines.append(f"<b>{weekday_abbr} {date_str_fmt}</b>")
-        lines.append("=========\n\n".join(tasks) if tasks else "• Нет задач")
+        first_line = f"<b>{weekday_abbr} {date_str_fmt}</b>"
+        lines = []
+        lines.append("\n\n".join(tasks) if tasks else "• Нет задач")
         lines.append("")  # пустая строка между днями
 
     if not has_any_task:
         bot.send_message(chat_id, "На следующую неделю задач нет.")
     else:
-        full_message = "\n\n".join(lines).strip()
+        full_message = first_line + "\n=========\n".join(lines).strip()
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["task"])
