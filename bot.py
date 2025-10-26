@@ -967,7 +967,7 @@ def handle_daytasks_date_input(msg):
     if not tasks_on_date:
         bot.send_message(chat_id, f"📅 На {date_str} нет запланированных задач.")
     else:
-        header = f"📋 Задачи на <b>{date_str}</b>:\n\n"
+        header = f"📋 Задачи на <b><i>{date_str}</i></b>:\n\n"
         full_message = header + "\n".join(tasks_on_date)
         send_long_message(bot, chat_id, full_message, parse_mode="HTML")
 
@@ -1005,7 +1005,7 @@ def today_handler(message):
     if not tasks:
         bot.send_message(message.chat.id, f"📅 На сегодня ({today.strftime('%d.%m.%Y')}) нет запланированных задач.")
     else:
-        header = f"📋 Задачи на сегодня <b>({today.strftime('%d.%m.%Y')})</b>:\n\n"
+        header = f"📋 Задачи на сегодня <b><i>({today.strftime('%d.%m.%Y')})</i></b>:\n\n"
         full_message = header + "\n".join(tasks)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
@@ -1053,9 +1053,9 @@ def tomorrow_handler(message):
         )
     else:
         # logger.debug("7")
-        header = f"📋 Задачи на завтра ({tomorrow.strftime('%d.%m.%Y')}):\n"
+        header = f"📋 Задачи на завтра <b><i>({tomorrow.strftime('%d.%m.%Y')})</i></b>:\n"
         full_message = header + "\n" + "\n".join(tasks)
-        send_long_message(bot, message.chat.id, full_message)
+        send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
 @bot.message_handler(commands=["week"])
 def week_handler(message):
@@ -1280,7 +1280,7 @@ def nextweek_handler(message):
                 task_dt = datetime.fromisoformat(task["datetime"])
                 if task_dt.date() == day:
                     safe_text = html.escape(task["text"])
-                    tasks.append(f"• {safe_text} ({task_dt.strftime('%H:%M')})")
+                    tasks.append(f"• {safe_text} <b><i>({task_dt.strftime('%H:%M')})</i></b>")
                     has_any_task = True
             except (ValueError, KeyError):
                 continue
