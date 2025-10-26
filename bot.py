@@ -1165,7 +1165,7 @@ def week_handler(message):
     for i, block in enumerate(day_blocks):
         full_message += block
         if i < len(day_blocks) - 1:  # не последний день
-            full_message += "\n=======\n\n"
+            full_message += "\n\n=======\n\n"
 
     if not full_message.strip():
         full_message = "На эту неделю задач нет."
@@ -1276,7 +1276,7 @@ def handle_weekbydate_input(msg):
     for i, block in enumerate(day_blocks):
         full_message += block
         if i < len(day_blocks) - 1:
-            full_message += "\n=======\n\n"
+            full_message += "\n\n=======\n\n"
 
     if not any("•" in block for block in day_blocks):
         bot.send_message(chat_id, "На эту неделю задач нет.")
@@ -1358,7 +1358,7 @@ def nextweek_handler(message):
     for i, block in enumerate(day_blocks):
         full_message += block
         if i < len(day_blocks) - 1:
-            full_message += "\n=======\n\n"
+            full_message += "\n\n=======\n\n"
 
     if not any("•" in block for block in day_blocks):
         bot.send_message(chat_id, "На следующую неделю задач нет.")
