@@ -949,7 +949,12 @@ def daytasks_handler(message):
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
     data = load_data(message.from_user.first_name, message.from_user.id, "daytasks")
-    if 
+    if data == {}:
+        bot.send_message(
+            message.chat.id,
+            "Сначала отправьте /start"
+        )
+        return
     if data == None:
         return
     example = now_msk().strftime("%Y-%m-%d")  # Только дата, без времени
