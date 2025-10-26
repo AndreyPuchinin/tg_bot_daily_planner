@@ -1111,7 +1111,7 @@ def week_handler(message):
         for task in raw_tasks:
             safe_text = html.escape(task["text"])
             time_str = datetime.fromisoformat(task["datetime"]).strftime("%H:%M")
-            tasks.append(f"• {safe_text} ({time_str})")
+            tasks.append(f"• {safe_text} <b><i>({time_str})</i></b>")
         
         lines.append(f"<b>{weekday_abbr} {date_str}</b>")
         if tasks:
@@ -1211,7 +1211,7 @@ def handle_weekbydate_input(msg):
         tasks = []
         for task in raw_tasks:
             safe_text = html.escape(task["text"])
-            tasks.append(f"• {safe_text} ({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})")
+            tasks.append(f"• {safe_text} <b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>")
             has_any_task = True
 
         weekday_abbr = weekdays_ru[day.weekday()]
@@ -1389,7 +1389,7 @@ def check_and_send_reminders(bot, user_id, chat_id, data):
     lines = []
     for task in tasks_to_remind:
         dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
-        lines.append(f"🔔 {task['text']}\n📅 {dt_str}")
+        lines.append(f"🔔 {task['text']}\n📅 <b><i>{dt_str}</i></b>")
         task["reminded"] = True
 
     # Соединяем задачи через ДВЕ пустые строки (как у вас было)
