@@ -182,7 +182,7 @@ def save_data(data):
 
 # Временная команда для перетирки ВСЕХ айди
 # НЕ обновляет айди, если они были установлены иным механизмом!!
-@bot.message_handler(commands=["migrate_tasks_unique"])
+@bot.message_handler(commands=["update_all_ids"])
 def migrate_tasks_unique_handler(message):
     if str(message.from_user.id) not in ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
