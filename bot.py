@@ -252,7 +252,7 @@ def notify_admins_about_new_user(user_name: str, user_id: str, chat_id: str):
     message_to_admins = (
         f"🆕 Новый пользователь зарегистрировался в боте!\n\n"
         f"<b>Имя: <i>{user_name}</i></b>\n"
-        f"<i><b>ID:</b> {user_id}</i>\n"
+        f"<i><b>User ID:</b> {user_id}</i>\n"
         f"<i><b>Chat ID:</b> {chat_id}</i>"
     )
     for admin_id in ADMIN_USER_ID:
