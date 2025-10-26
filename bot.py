@@ -776,7 +776,8 @@ def info_handler(message):
     text += "<i>• В этом случае вы можете связаться с админами (/feedback) или просто подождать. При любых действиях, вызывающих ошибку, информация передается админам автоматически.</i>\n\n"
 
     if is_admin:
-        text += "<b>Команды для администраторов:</b>\n"
+        text += "<b>Команды для администраторов:</b>\n\n"
+        text += "⚠️ Для полноценной работы, чтобы получать системные уведомления об ошибках, запустите @MyDiaryAdminBot\n\n"
         text += "• /jsonout — <i>получить текущуюa БД в виде файла</i>\n"
         text += "• /jsonin — <i>загрузить новую БД из файла</i>\n"
         text += "<i>⚠️ Все операции с БД требуют корректного JSON-формата.</i>\n"
@@ -1400,7 +1401,7 @@ def task_handler(message):
         stop_command_in_group(message.chat.id, message.from_user.first_name or "Пользователь")
         return
     user_name = message.from_user.first_name or "Пользователь"
-    data = load_data(user_name, message.from_user.id, "task")
+    data = load_data(user_name, message.from_user.id, "task")штащ
     if data == {}:
         bot.send_message(
             message.chat.id,
