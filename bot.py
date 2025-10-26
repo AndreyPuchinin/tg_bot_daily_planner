@@ -180,16 +180,16 @@ def save_data(data):
         
 # === КОМАНДЫ АДМИНА ===
 
-# Временная команда для установки айди всем задачам без айди
+# Временная команда для перетирки ВСЕХ айди
 # НЕ обновляет айди, если они были установлены иным механизмом!!
-@bot.message_handler(commands=["migrate_tasks"])
-def migrate_tasks_handler(message):
+@bot.message_handler(commands=["migrate_tasks_unique"])
+def migrate_tasks_unique_handler(message):
     if str(message.from_user.id) not in ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
         return
 
     user_name = message.from_user.first_name or "Admin"
-    data = load_data(user_name, message.from_user.id, "migrate_tasks")
+    data = load_data(user_name, message.from_user.id, "migrate_tasks_unique")
     if data is None:
         bot.send_message(message.chat.id, "❌ Не удалось загрузить БД.")
         return
@@ -199,15 +199,19 @@ def migrate_tasks_handler(message):
         if "tasks" not in user_data:
             continue
         for task in user_data["tasks"]:
-            if "task_id" not in task:
-                task["task_id"] = generate_task_id(user_id)
-                migrated_count += 1
+            # Удаляем старый task_id, если есть
+            task.pop("task_id", None)
+            # Генерируем новый с микрозадержкой
+            task["task_id"] = f"{user_id}_{int(time.time() * 1000)}"
+            migrated_count += 1
+            # Пауза 0.5 мс — достаточно для уникальности, но быстро
+            time.sleep(0.0005)
 
-    if migrated_count == 0:
-        bot.send_message(message.chat.id, "✅ Все задачи уже имеют task_id.")
-    else:
-        save_data(data)
-        bot.send_message(message.chat.id, f"✅ Добавлено {migrated_count} task_id(ев).")
+    save_data(data)
+    bot.send_message(
+        message.chat.id,
+        f"✅ Успешно перегенерировано {migrated_count} уникальных task_id."
+    )
 
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     # Если вызов из напоминания (reminder_daemon), игнорируем вызов и завершаемся
@@ -215,7 +219,7 @@ def notify_admins_about_db_error(user_name: str, user_id: str, command: str, err
         return
     
     message_to_admins = (
-        f"‼️ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
+        f"‼ Пользователь <b>{user_name} (ID={user_id})</b> пытается выполнить команду /{command}, "
         f"но произошла ошибка при работе с Базой Данных!"
         f"Подробнее об ошибке: {error_details}"
     )
