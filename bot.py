@@ -182,7 +182,8 @@ def save_data(data):
 
 # Временная команда для перетирки ВСЕХ айди
 # НЕ обновляет айди, если они были установлены иным механизмом!!
-@bot.message_handler(commands=["update_all_ids"])
+# НЕЛЬЗЯ ПРИМЕНЯТЬ!!! ИНАЧЕ У ЮЗЕРОВ БУДУТ КРИВЫЕ АЙДИ (они их ищут в поиске по сбщ)
+"""@bot.message_handler(commands=["update_all_ids"])
 def migrate_tasks_unique_handler(message):
     if str(message.from_user.id) not in ADMIN_USER_ID:
         bot.send_message(message.chat.id, "❌ Эта команда доступна только администратору.")
@@ -211,7 +212,7 @@ def migrate_tasks_unique_handler(message):
     bot.send_message(
         message.chat.id,
         f"✅ Успешно перегенерировано {migrated_count} уникальных task_id."
-    )
+    )"""
 
 def notify_admins_about_db_error(user_name: str, user_id: str, command: str, error_details: str):
     # Если вызов из напоминания (reminder_daemon), игнорируем вызов и завершаемся
@@ -561,7 +562,7 @@ def get_sorted_tasks_on_date(data: dict, user_id: str, target_date: datetime.dat
     # Сортируем по времени
     raw_tasks.sort(key=lambda t: datetime.fromisoformat(t["datetime"]))
     # Преобразуем в строки
-    return [f"• {task['text']} <b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>" for task in raw_tasks]
+    return [f"• {task['text']}\n<b>ID:</b> <i>{task['task_id']}</i>\n<b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>" for task in raw_tasks]
 
 @bot.message_handler(func=lambda msg: str(msg.from_user.id) in user_awaiting_settings_input)
 def settings_value_input(msg):
@@ -890,7 +891,7 @@ def overdue_handler(message):
         lines = []
         for task in overdue_tasks:
             dt_str = datetime.fromisoformat(task["datetime"]).strftime('%d.%m.%Y в %H:%M')
-            lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>")
+            lines.append(f"• {task['text']} <b><i>({dt_str})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
         full_message = "⚠️ <b>Просроченные задачи:</b>\n\n" + "\n".join(lines)
         send_long_message(bot, message.chat.id, full_message, parse_mode="HTML")
 
@@ -1251,7 +1252,7 @@ def handle_weekbydate_input(msg):
         tasks = []
         for task in raw_tasks:
             safe_text = html.escape(task["text"])
-            tasks.append(f"• {safe_text} <b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>")
+            tasks.append(f"• {safe_text} <b><i>({datetime.fromisoformat(task['datetime']).strftime('%H:%M')})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
             has_any_task = True
 
         weekday_abbr = weekdays_ru[day.weekday()]
@@ -1319,7 +1320,7 @@ def nextweek_handler(message):
                 task_dt = datetime.fromisoformat(task["datetime"])
                 if task_dt.date() == day:
                     safe_text = html.escape(task["text"])
-                    tasks.append(f"• {safe_text} <b><i>({task_dt.strftime('%H:%M')})</i></b>")
+                    tasks.append(f"• {safe_text} <b><i>({task_dt.strftime('%H:%M')})</i></b>\n<b>ID:</b> <i>{task['task_id']}</i>")
                     has_any_task = True
             except (ValueError, KeyError):
                 continue
@@ -1465,6 +1466,7 @@ def datetime_input_handler(message):
     bot.send_message(
         chat_id,
         f"✅ Задача сохранена!\n"
+        f"<b>ID:</b> <i>{task['task_id']}</i>\n"
         f"{text}\n"
         f"📅 {task_datetime.strftime('%d.%m.%Y в %H:%M')}"
     )
