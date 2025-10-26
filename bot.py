@@ -205,7 +205,7 @@ def migrate_tasks_unique_handler(message):
             task["task_id"] = f"{user_id}_{int(time.time() * 1000)}"
             migrated_count += 1
             # Пауза 0.5 мс — достаточно для уникальности, но быстро
-            time.sleep(0.0005)
+            time.sleep(0.005)
 
     save_data(data)
     bot.send_message(
